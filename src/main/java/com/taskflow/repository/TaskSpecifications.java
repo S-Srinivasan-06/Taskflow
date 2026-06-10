@@ -43,7 +43,10 @@ public class TaskSpecifications {
             }
 
             if (startDate != null) {
-                predicates.add(cb.greaterThanOrEqualTo(root.get("dueAt"), startDate));
+                predicates.add(cb.or(
+                        cb.greaterThanOrEqualTo(root.get("dueAt"), startDate),
+                        cb.isNull(root.get("dueAt"))
+                ));
             }
             if (endDate != null) {
                 predicates.add(cb.lessThan(root.get("dueAt"), endDate));

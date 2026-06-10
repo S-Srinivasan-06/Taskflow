@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react';
 import { ClockWidget } from './ClockWidget';
+import logo from '../../assets/logo.svg';
 
 interface Props {
   onNewTask: () => void;
@@ -10,14 +11,8 @@ interface Props {
 export function Topbar({ onNewTask, timezone, setTimezone }: Props) {
   return (
     <header className="h-14 border-b-2 border-black bg-black text-white flex items-center justify-between px-6 shrink-0 relative z-30">
-      <div className="flex items-center gap-2">
-        <div className="w-5 h-5 bg-orange-500 border-2 border-white" />
-        <h1
-          className="text-lg font-bold tracking-widest"
-          style={{ fontFamily: "'JetBrains Mono', monospace" }}
-        >
-          TASKFLOW
-        </h1>
+      <div className="flex items-center">
+        <img src={logo} alt="Taskflow Logo" className="h-9 object-contain" />
       </div>
 
       <div className="absolute left-1/2 -translate-x-1/2">

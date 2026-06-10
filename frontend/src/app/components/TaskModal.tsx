@@ -28,22 +28,43 @@ const STATUS_ACTIVE: Record<TaskStatus, string> = {
   DONE: 'bg-green-600 text-white border-green-600',
   CANCELLED: 'bg-red-800 text-white border-red-800',
 };
-
-function toDatetimeLocalValue(isoStr: string): string {
-  try {
-    const d = parseISO(isoStr);
-    return format(d, "yyyy-MM-dd'T'HH:mm");
-  } catch {
-    return '';
-  }
-}
-
 export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskModalProps) {
   const isEdit = !!task;
 
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.description ?? '');
-  const [dueAt, setDueAt] = useState(task?.dueAt ? toDatetimeLocalValue(task.dueAt) : '');
+
+  const getInitialDate = () => {
+    if (!task?.dueAt) return '';
+    try {
+      return format(parseISO(task.dueAt), 'yyyy-MM-dd');
+    } catch {
+      return '';
+    }
+  };
+
+  const getInitialHour = () => {
+    if (!task?.dueAt) return '12';
+    try {
+      return format(parseISO(task.dueAt), 'HH');
+    } catch {
+      return '12';
+    }
+  };
+
+  const getInitialMinute = () => {
+    if (!task?.dueAt) return '00';
+    try {
+      return format(parseISO(task.dueAt), 'mm');
+    } catch {
+      return '00';
+    }
+  };
+
+  const [dueDate, setDueDate] = useState(getInitialDate());
+  const [dueHour, setDueHour] = useState(getInitialHour());
+  const [dueMinute, setDueMinute] = useState(getInitialMinute());
+
   const [priority, setPriority] = useState<Priority>(task?.priority ?? 'LOW');
   const [status, setStatus] = useState<TaskStatus>(task?.status ?? 'PENDING');
   const [category, setCategory] = useState<string>(task?.category ?? '');
@@ -51,6 +72,81 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
   const [showCustomCat, setShowCustomCat] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+
+  // Custom Time Handlers
+  const ensureDateSelected = () => {
+    if (!dueDate) {
+      setDueDate(format(new Date(), 'yyyy-MM-dd'));
+    }
+  };
+
+  const handleHourChange = (val: string) => {
+    ensureDateSelected();
+    const cleaned = val.replace(/\D/g, '');
+    if (cleaned === '') {
+      setDueHour('');
+      return;
+    }
+    let num = parseInt(cleaned, 10);
+    if (num > 23) num = 23;
+    setDueHour(num.toString());
+  };
+
+  const handleHourBlur = () => {
+    if (!dueHour) {
+      setDueHour('12');
+    } else {
+      setDueHour(parseInt(dueHour, 10).toString().padStart(2, '0'));
+    }
+  };
+
+  const incrementHour = () => {
+    ensureDateSelected();
+    const current = dueHour ? parseInt(dueHour, 10) : 12;
+    const next = (current + 1) % 24;
+    setDueHour(next.toString().padStart(2, '0'));
+  };
+
+  const decrementHour = () => {
+    ensureDateSelected();
+    const current = dueHour ? parseInt(dueHour, 10) : 12;
+    const next = (current - 1 + 24) % 24;
+    setDueHour(next.toString().padStart(2, '0'));
+  };
+
+  const handleMinuteChange = (val: string) => {
+    ensureDateSelected();
+    const cleaned = val.replace(/\D/g, '');
+    if (cleaned === '') {
+      setDueMinute('');
+      return;
+    }
+    let num = parseInt(cleaned, 10);
+    if (num > 59) num = 59;
+    setDueMinute(num.toString());
+  };
+
+  const handleMinuteBlur = () => {
+    if (!dueMinute) {
+      setDueMinute('00');
+    } else {
+      setDueMinute(parseInt(dueMinute, 10).toString().padStart(2, '0'));
+    }
+  };
+
+  const incrementMinute = () => {
+    ensureDateSelected();
+    const current = dueMinute ? parseInt(dueMinute, 10) : 0;
+    const next = (current + 5) % 60;
+    setDueMinute(next.toString().padStart(2, '0'));
+  };
+
+  const decrementMinute = () => {
+    ensureDateSelected();
+    const current = dueMinute ? parseInt(dueMinute, 10) : 0;
+    const next = (current - 5 + 60) % 60;
+    setDueMinute(next.toString().padStart(2, '0'));
+  };
 
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -83,7 +179,18 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
       ? customCat.trim().toLowerCase()
       : category || null;
 
-    const dueAtValue = dueAt ? new Date(dueAt).toISOString() : null;
+    let dueAtValue: string | null = null;
+    if (dueDate) {
+      try {
+        const [year, month, day] = dueDate.split('-').map(Number);
+        const hour = parseInt(dueHour || '12', 10);
+        const minute = parseInt(dueMinute || '00', 10);
+        const dateObj = new Date(year, month - 1, day, hour, minute, 0);
+        dueAtValue = dateObj.toISOString();
+      } catch (e) {
+        console.error(e);
+      }
+    }
 
     if (isEdit) {
       const data: TaskUpdateRequest = {
@@ -182,23 +289,81 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
                 <p className="text-[11px] text-red-500 mt-1 tracking-wide">{errors.description}</p>
               )}
             </div>
-
             {/* Due Date */}
             <div>
-              <label className="text-[10px] tracking-widest text-stone-500 block mb-1 font-bold">DUE DATE</label>
-              <div className="flex items-center gap-2">
+              <label className="text-[10px] tracking-widest text-stone-500 block mb-1 font-bold">DUE DATE & TIME</label>
+              <div className="flex items-center gap-4">
+                {/* Date Picker */}
                 <input
-                  type="datetime-local"
-                  value={dueAt}
-                  onChange={e => setDueAt(e.target.value)}
+                  type="date"
+                  value={dueDate}
+                  onChange={e => setDueDate(e.target.value)}
                   className="flex-1 bg-transparent outline-none border-b-2 border-black focus:border-[#F97316] pb-2 text-sm text-black"
                   style={{ fontFamily: "'JetBrains Mono', monospace", transition: 'border-color 0.15s' }}
                 />
-                {dueAt && (
+
+                {/* Custom Time Selector (Always visible) */}
+                <div className="flex items-center gap-1.5 border-2 border-black bg-white px-3 py-1 shadow-brutal-sm">
+                  {/* Hour Input + Arrows */}
+                  <div className="flex flex-col items-center">
+                    <button
+                      type="button"
+                      onClick={incrementHour}
+                      className="text-[8px] hover:bg-stone-200 w-full text-center select-none cursor-pointer leading-none font-bold"
+                    >
+                      ▲
+                    </button>
+                    <input
+                      type="text"
+                      value={dueHour}
+                      onChange={e => handleHourChange(e.target.value)}
+                      onBlur={handleHourBlur}
+                      className="w-6 text-center text-xs font-bold bg-transparent outline-none border-none p-0"
+                      maxLength={2}
+                    />
+                    <button
+                      type="button"
+                      onClick={decrementHour}
+                      className="text-[8px] hover:bg-stone-200 w-full text-center select-none cursor-pointer leading-none font-bold"
+                    >
+                      ▼
+                    </button>
+                  </div>
+
+                  <span className="font-bold text-xs select-none">:</span>
+
+                  {/* Minute Input + Arrows */}
+                  <div className="flex flex-col items-center">
+                    <button
+                      type="button"
+                      onClick={incrementMinute}
+                      className="text-[8px] hover:bg-stone-200 w-full text-center select-none cursor-pointer leading-none font-bold"
+                    >
+                      ▲
+                    </button>
+                    <input
+                      type="text"
+                      value={dueMinute}
+                      onChange={e => handleMinuteChange(e.target.value)}
+                      onBlur={handleMinuteBlur}
+                      className="w-6 text-center text-xs font-bold bg-transparent outline-none border-none p-0"
+                      maxLength={2}
+                    />
+                    <button
+                      type="button"
+                      onClick={decrementMinute}
+                      className="text-[8px] hover:bg-stone-200 w-full text-center select-none cursor-pointer leading-none font-bold"
+                    >
+                      ▼
+                    </button>
+                  </div>
+                </div>
+
+                {dueDate && (
                   <button
                     type="button"
-                    onClick={() => setDueAt('')}
-                    className="text-[10px] border-2 border-black px-2 py-0.5 hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors font-bold"
+                    onClick={() => { setDueDate(''); setDueHour('12'); setDueMinute('00'); }}
+                    className="text-[10px] border-2 border-black bg-white px-2 py-2 hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors font-bold shadow-brutal-sm uppercase"
                   >
                     CLEAR
                   </button>

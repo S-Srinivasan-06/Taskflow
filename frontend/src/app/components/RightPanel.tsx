@@ -229,7 +229,7 @@ export function RightPanel({
 
             {isBidirectional && <div id="today-marker" className="h-0" />}
 
-            {futureTasks.map(task => (
+            {futureTasks.filter(t => t.dueAt !== null).map(task => (
               <TaskCard
                 key={task.id}
                 task={task}
@@ -238,6 +238,28 @@ export function RightPanel({
                 onToggle={e => { e.stopPropagation(); onToggleStatus(task.id); }}
               />
             ))}
+
+            {(() => {
+              const noDueDateTasks = futureTasks.filter(t => t.dueAt === null);
+              if (noDueDateTasks.length === 0) return null;
+              return (
+                <>
+                  <div className="flex items-center gap-2 pt-6 pb-2 border-t-2 border-dashed border-black">
+                    <span className="text-[10px] font-bold bg-black text-white px-2 py-0.5 uppercase">NO DUE DATE</span>
+                    <span className="h-0.5 flex-1 bg-black" />
+                  </div>
+                  {noDueDateTasks.map(task => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      group="NO_DUE_DATE"
+                      onEdit={() => onEditTask(task)}
+                      onToggle={e => { e.stopPropagation(); onToggleStatus(task.id); }}
+                    />
+                  ))}
+                </>
+              );
+            })()}
 
             {/* Bottom intersection target for Future tasks */}
             <div ref={futureRef} className="h-10 flex items-center justify-center">
