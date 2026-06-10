@@ -1,0 +1,30 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+/* Neo-Brutalist Hard Shadows */
+.shadow-brutal { box-shadow: 2px 2px 0px 0px #000; }
+.shadow-brutal-hover { box-shadow: 4px 4px 0px 0px #000; }
+.shadow-brutal-sm { box-shadow: 1px 1px 0px 0px #000; }
+
+/* Physical Neo-Brutalist Scrollbar */
+::-webkit-scrollbar { width: 14px; height: 14px; }
+::-webkit-scrollbar-track {
+  background: #f5f5f4;
+  border-left: 2px solid #000;
+}
+::-webkit-scrollbar-thumb {
+  background: #fff;
+  border: 2px solid #000;
+  box-shadow: 2px 2px 0px #000;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #e5e5e5;
+  box-shadow: 3px 3px 0px #000;
+}
+
+/* Replace default focus rings with brutalist outlines */
+*:focus-visible {
+  outline: 2px solid #F97316;
+  outline-offset: 2px;
+}
