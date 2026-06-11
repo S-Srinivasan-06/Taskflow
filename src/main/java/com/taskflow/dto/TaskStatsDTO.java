@@ -7,5 +7,5 @@ public record TaskStatsDTO(
         long completedToday,
         long dueTomorrow,
         long dueThisWeek
-) {
+) implements java.io.Serializable {
 }

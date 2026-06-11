@@ -238,16 +238,16 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -20, opacity: 0 }}
           transition={{ type: 'spring', damping: 22, stiffness: 320 }}
-          className="w-full max-w-2xl bg-stone-100 flex flex-col border-4 border-black shadow-[8px_8px_0px_0px_#000] relative max-h-full overflow-hidden"
+          className="w-full max-w-2xl bg-stone-100 dark:bg-black flex flex-col border-4 border-black dark:border-[#4169E1] shadow-[8px_8px_0px_0px_#000] dark:shadow-[#ffffff] relative max-h-full overflow-hidden"
           onClick={e => e.stopPropagation()}
           style={{ fontFamily: "'JetBrains Mono', monospace" }}
         >
           {/* Header */}
-          <div className="flex justify-between items-center p-4 border-b-4 border-black bg-white shrink-0">
+          <div className="flex justify-between items-center p-4 border-b-4 border-black dark:border-[#4169E1] bg-white dark:bg-black shrink-0">
             <h2 className="text-xl font-bold uppercase tracking-widest">{isEdit ? 'EDIT TASK' : 'NEW TASK'}</h2>
             <button
               onClick={onClose}
-              className="p-1 border-2 border-transparent hover:border-black hover:bg-black hover:text-white transition-all"
+              className="p-1 border-2 border-transparent hover:border-black dark:hover:border-[#4169E1] hover:bg-black dark:hover:bg-[#4169E1] hover:text-white transition-all"
               aria-label="Close"
             >
               <X size={24} strokeWidth={3} />
@@ -265,8 +265,8 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
                 onChange={e => { setTitle(e.target.value); if (errors.title) setErrors({}); }}
                 placeholder="Task title..."
                 className={[
-                  'w-full bg-transparent outline-none border-b-2 pb-2 text-base text-black placeholder-stone-400',
-                  errors.title ? 'border-red-500' : 'border-black focus:border-[#F97316]',
+                  'w-full bg-transparent outline-none border-b-2 pb-2 text-base text-black dark:text-[#f5f5f4] placeholder-stone-400',
+                  errors.title ? 'border-red-500' : 'border-black dark:border-[#4169E1] focus:border-[#F97316]',
                 ].join(' ')}
                 style={{ fontFamily: "'Inter', sans-serif", fontWeight: 500, transition: 'border-color 0.15s' }}
               />
@@ -282,7 +282,7 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
                 onChange={e => setDescription(e.target.value)}
                 placeholder="Description (optional)..."
                 rows={3}
-                className="w-full bg-transparent outline-none border-b-2 border-black focus:border-[#F97316] pb-2 text-sm text-black placeholder-stone-400 resize-none"
+                className="w-full bg-transparent outline-none border-b-2 border-black dark:border-[#4169E1] focus:border-[#F97316] pb-2 text-sm text-black dark:text-[#f5f5f4] placeholder-stone-400 resize-none"
                 style={{ fontFamily: "'JetBrains Mono', monospace", transition: 'border-color 0.15s' }}
               />
               {errors.description && (
@@ -298,18 +298,18 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
                   type="date"
                   value={dueDate}
                   onChange={e => setDueDate(e.target.value)}
-                  className="flex-1 bg-transparent outline-none border-b-2 border-black focus:border-[#F97316] pb-2 text-sm text-black"
+                  className="flex-1 bg-transparent outline-none border-b-2 border-black dark:border-[#4169E1] focus:border-[#F97316] pb-2 text-sm text-black dark:text-[#f5f5f4]"
                   style={{ fontFamily: "'JetBrains Mono', monospace", transition: 'border-color 0.15s' }}
                 />
 
                 {/* Custom Time Selector (Always visible) */}
-                <div className="flex items-center gap-1.5 border-2 border-black bg-white px-3 py-1 shadow-brutal-sm">
+                <div className="flex items-center gap-1.5 border-2 border-black dark:border-[#4169E1] bg-white dark:bg-black px-3 py-1 shadow-brutal-sm dark:shadow-[#ffffff]">
                   {/* Hour Input + Arrows */}
                   <div className="flex flex-col items-center">
                     <button
                       type="button"
                       onClick={incrementHour}
-                      className="text-[8px] hover:bg-stone-200 w-full text-center select-none cursor-pointer leading-none font-bold"
+                      className="text-[8px] hover:bg-stone-200 dark:hover:bg-[#333333] w-full text-center select-none cursor-pointer leading-none font-bold"
                     >
                       ▲
                     </button>
@@ -318,13 +318,13 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
                       value={dueHour}
                       onChange={e => handleHourChange(e.target.value)}
                       onBlur={handleHourBlur}
-                      className="w-6 text-center text-xs font-bold bg-transparent outline-none border-none p-0"
+                      className="w-6 text-center text-xs font-bold bg-transparent text-black dark:text-[#f5f5f4] outline-none border-none p-0"
                       maxLength={2}
                     />
                     <button
                       type="button"
                       onClick={decrementHour}
-                      className="text-[8px] hover:bg-stone-200 w-full text-center select-none cursor-pointer leading-none font-bold"
+                      className="text-[8px] hover:bg-stone-200 dark:hover:bg-[#333333] w-full text-center select-none cursor-pointer leading-none font-bold"
                     >
                       ▼
                     </button>
@@ -337,7 +337,7 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
                     <button
                       type="button"
                       onClick={incrementMinute}
-                      className="text-[8px] hover:bg-stone-200 w-full text-center select-none cursor-pointer leading-none font-bold"
+                      className="text-[8px] hover:bg-stone-200 dark:hover:bg-[#333333] w-full text-center select-none cursor-pointer leading-none font-bold"
                     >
                       ▲
                     </button>
@@ -346,13 +346,13 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
                       value={dueMinute}
                       onChange={e => handleMinuteChange(e.target.value)}
                       onBlur={handleMinuteBlur}
-                      className="w-6 text-center text-xs font-bold bg-transparent outline-none border-none p-0"
+                      className="w-6 text-center text-xs font-bold bg-transparent text-black dark:text-[#f5f5f4] outline-none border-none p-0"
                       maxLength={2}
                     />
                     <button
                       type="button"
                       onClick={decrementMinute}
-                      className="text-[8px] hover:bg-stone-200 w-full text-center select-none cursor-pointer leading-none font-bold"
+                      className="text-[8px] hover:bg-stone-200 dark:hover:bg-[#333333] w-full text-center select-none cursor-pointer leading-none font-bold"
                     >
                       ▼
                     </button>
@@ -363,7 +363,7 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
                   <button
                     type="button"
                     onClick={() => { setDueDate(''); setDueHour('12'); setDueMinute('00'); }}
-                    className="text-[10px] border-2 border-black bg-white px-2 py-2 hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors font-bold shadow-brutal-sm uppercase"
+                    className="text-[10px] border-2 border-black dark:border-[#4169E1] bg-white dark:bg-black px-2 py-2 hover:bg-red-500 hover:text-white hover:border-red-500 transition-colors font-bold shadow-brutal-sm dark:shadow-[#ffffff] uppercase"
                   >
                     CLEAR
                   </button>
@@ -384,7 +384,7 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
                       'flex-1 py-1.5 text-xs border-2 tracking-wider transition-colors font-bold',
                       priority === p
                         ? PRIORITY_ACTIVE[p]
-                        : 'bg-white text-black border-black hover:bg-stone-50',
+                        : 'bg-white dark:bg-black text-black dark:text-[#f5f5f4] border-black dark:border-[#4169E1] hover:bg-stone-50 dark:hover:bg-[#333333]',
                     ].join(' ')}
                   >
                     {p}
@@ -402,8 +402,8 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
                     type="button"
                     onClick={() => setCategory('')}
                     className={[
-                      'px-3 py-1.5 text-xs border-2 border-black tracking-wider transition-colors font-bold',
-                      category === '' ? 'bg-black text-white' : 'bg-white text-black hover:bg-stone-50',
+                      'px-3 py-1.5 text-xs border-2 border-black dark:border-[#4169E1] tracking-wider transition-colors font-bold',
+                      category === '' ? 'bg-black dark:bg-[#4169E1] text-white' : 'bg-white dark:bg-black text-black dark:text-[#f5f5f4] hover:bg-stone-50 dark:hover:bg-[#333333]',
                     ].join(' ')}
                   >
                     NONE
@@ -414,8 +414,8 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
                       type="button"
                       onClick={() => setCategory(cat.name)}
                       className={[
-                        'px-3 py-1.5 text-xs border-2 border-black tracking-wider transition-colors font-bold flex items-center gap-1.5',
-                        category === cat.name ? 'bg-black text-white' : 'bg-white text-black hover:bg-stone-50',
+                        'px-3 py-1.5 text-xs border-2 border-black dark:border-[#4169E1] tracking-wider transition-colors font-bold flex items-center gap-1.5',
+                        category === cat.name ? 'bg-black dark:bg-[#4169E1] text-white' : 'bg-white dark:bg-black text-black dark:text-[#f5f5f4] hover:bg-stone-50 dark:hover:bg-[#333333]',
                       ].join(' ')}
                     >
                       <div className={`w-2 h-2 ${cat.color} border border-black shrink-0`} />
@@ -425,7 +425,7 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
                   <button
                     type="button"
                     onClick={() => setShowCustomCat(true)}
-                    className="px-3 py-1.5 text-xs border-2 border-dashed border-black tracking-wider hover:bg-stone-200 transition-colors font-bold"
+                    className="px-3 py-1.5 text-xs border-2 border-dashed border-black dark:border-[#4169E1] tracking-wider hover:bg-stone-200 dark:hover:bg-[#333333] transition-colors font-bold"
                   >
                     + CUSTOM
                   </button>
@@ -437,14 +437,14 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
                     value={customCat}
                     onChange={e => setCustomCat(e.target.value)}
                     placeholder="e.g. meetings"
-                    className="flex-1 bg-transparent outline-none border-b-2 border-black focus:border-[#F97316] pb-1 text-sm"
+                    className="flex-1 bg-transparent outline-none border-b-2 border-black dark:border-[#4169E1] focus:border-[#F97316] pb-1 text-sm text-black dark:text-[#f5f5f4]"
                     style={{ fontFamily: "'Inter', sans-serif" }}
                     autoFocus
                   />
                   <button
                     type="button"
                     onClick={() => { setShowCustomCat(false); setCustomCat(''); }}
-                    className="text-[10px] border-2 border-black px-2 py-0.5 hover:bg-stone-200 transition-colors font-bold"
+                    className="text-[10px] border-2 border-black dark:border-[#4169E1] px-2 py-0.5 hover:bg-stone-200 dark:hover:bg-[#333333] transition-colors font-bold"
                   >
                     CANCEL
                   </button>
@@ -466,7 +466,7 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
                         'flex-1 py-1.5 text-[10px] border-2 tracking-wider transition-colors font-bold',
                         status === s
                           ? STATUS_ACTIVE[s]
-                          : 'bg-white text-black border-black hover:bg-stone-50',
+                          : 'bg-white dark:bg-black text-black dark:text-[#f5f5f4] border-black dark:border-[#4169E1] hover:bg-stone-50 dark:hover:bg-[#333333]',
                       ].join(' ')}
                     >
                       {s.replace('_', ' ')}
@@ -477,16 +477,16 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
             )}
 
             {/* Actions */}
-            <div className="flex justify-end gap-4 pt-6 border-t-4 border-black shrink-0 mt-auto">
+            <div className="flex justify-end gap-4 pt-6 border-t-4 border-black dark:border-[#4169E1] shrink-0 mt-auto">
               {isEdit && (
                 <button
                   type="button"
                   onClick={handleDelete}
                   className={[
-                    'px-6 py-2 border-2 text-xs font-bold uppercase shadow-brutal-sm hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal-hover transition-all',
+                    'px-6 py-2 border-2 text-xs font-bold uppercase shadow-brutal-sm dark:shadow-[#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal-hover dark:hover:shadow-[4px_4px_0px_0px_#ffffff] transition-all',
                     deleteConfirm
                       ? 'bg-red-700 text-white border-red-700'
-                      : 'bg-white text-red-600 border-red-600 hover:bg-red-600 hover:text-white',
+                      : 'bg-white dark:bg-black text-red-600 border-red-600 hover:bg-red-600 hover:text-white',
                   ].join(' ')}
                 >
                   {deleteConfirm ? 'SURE?' : 'DELETE'}
@@ -495,13 +495,13 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-2 border-2 border-black bg-white text-xs font-bold uppercase shadow-brutal-sm hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal-hover transition-all"
+                className="px-6 py-2 border-2 border-black dark:border-[#4169E1] bg-white dark:bg-black text-xs font-bold uppercase shadow-brutal-sm dark:shadow-[#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal-hover dark:hover:shadow-[4px_4px_0px_0px_#ffffff] transition-all"
               >
                 CANCEL
               </button>
               <button
                 type="submit"
-                className="ml-auto px-6 py-2 text-xs bg-black text-white border-2 border-black hover:bg-stone-800 transition-colors tracking-wider font-bold relative group/save"
+                className="ml-auto px-6 py-2 text-xs bg-black dark:bg-[#4169E1] text-white border-2 border-black dark:border-[#4169E1] hover:bg-stone-800 dark:hover:bg-blue-700 transition-colors tracking-wider font-bold relative group/save"
               >
                 <div className="absolute inset-0 translate-x-[3px] translate-y-[3px] bg-[#F97316] -z-10" />
                 <span className="relative transition-transform duration-100 group-hover/save:-translate-x-[1px] group-hover/save:-translate-y-[1px] inline-block">

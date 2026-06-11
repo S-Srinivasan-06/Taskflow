@@ -16,4 +16,4 @@ public record TaskResponseDTO(
     Boolean isDeleted,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt
-) {}
+) implements java.io.Serializable {}

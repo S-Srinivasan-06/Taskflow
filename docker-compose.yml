@@ -27,11 +27,22 @@ services:
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
+      SPRING_REDIS_HOST: redis
     ports:
       - "8081:8081"
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - taskflow-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: taskflow-redis
+    ports:
+      - "6379:6379"
     networks:
       - taskflow-net
 

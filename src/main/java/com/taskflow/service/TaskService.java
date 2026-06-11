@@ -12,6 +12,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -36,6 +39,7 @@ public class TaskService {
         return taskRepository.findAll(spec, pageable).map(this::mapToResponseDTO);
     }
 
+    @Cacheable(value = "taskStats", key = "'all_stats'")
     public TaskStatsDTO getTaskStats() {
         OffsetDateTime now = OffsetDateTime.now();
         OffsetDateTime startOfDay = now.toLocalDate().atStartOfDay(now.getOffset()).toOffsetDateTime();
@@ -70,6 +74,7 @@ public class TaskService {
                 .map(this::mapToResponseDTO);
     }
 
+    @Cacheable(value = "tasksByMonth", key = "#year + '_' + #month")
     public List<TaskResponseDTO> getTasksByMonth(int year, int month) {
         return taskRepository.findTasksByMonth(year, month)
                 .stream()
@@ -82,6 +87,10 @@ public class TaskService {
         return mapToResponseDTO(task);
     }
 
+    @Caching(evict = {
+        @CacheEvict(value = "taskStats", allEntries = true),
+        @CacheEvict(value = "tasksByMonth", allEntries = true)
+    })
     public TaskResponseDTO createTask(TaskCreateDTO dto) {
         Task task = Task.builder()
                 .title(dto.title())
@@ -96,6 +105,10 @@ public class TaskService {
         return mapToResponseDTO(taskRepository.save(task));
     }
 
+    @Caching(evict = {
+        @CacheEvict(value = "taskStats", allEntries = true),
+        @CacheEvict(value = "tasksByMonth", allEntries = true)
+    })
     public TaskResponseDTO updateTask(UUID id, TaskUpdateDTO dto) {
         Task task = findActiveTaskOrThrow(id);
 
@@ -112,6 +125,10 @@ public class TaskService {
     }
 
     // V-03: Fixed optimistic locking bypass — load entity + save() so @Version is checked
+    @Caching(evict = {
+        @CacheEvict(value = "taskStats", allEntries = true),
+        @CacheEvict(value = "tasksByMonth", allEntries = true)
+    })
     public void deleteTask(UUID id) {
         Task task = findActiveTaskOrThrow(id);
         task.setIsDeleted(true);

@@ -131,10 +131,10 @@ export function RightPanel({
 
   if (futureStatus === 'pending' || (isBidirectional && pastStatus === 'pending')) {
     return (
-      <main className="flex-1 p-6 overflow-y-auto bg-stone-100">
+      <main className="flex-1 p-6 overflow-y-auto bg-stone-100 dark:bg-black">
         <div className="space-y-4">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-20 bg-stone-200 border-2 border-black animate-pulse" />
+            <div key={i} className="h-20 bg-stone-200 dark:bg-[#333333] border-2 border-black dark:border-[#4169E1] animate-pulse" />
           ))}
         </div>
       </main>
@@ -143,11 +143,11 @@ export function RightPanel({
 
   return (
     <main
-      className="flex-1 flex flex-col bg-stone-100 overflow-hidden relative"
+      className="flex-1 flex flex-col bg-stone-100 dark:bg-black overflow-hidden relative"
       style={{ fontFamily: "'JetBrains Mono', monospace" }}
     >
       {/* Toolbar */}
-      <div className="sticky top-0 z-20 p-4 border-b-2 border-black bg-white shrink-0 shadow-sm">
+      <div className="sticky top-0 z-20 p-4 border-b-2 border-black dark:border-[#4169E1] bg-white dark:bg-black shrink-0 shadow-sm">
         <div className="flex items-center gap-4 mb-4">
           <div className="relative flex-1 max-w-md">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500" strokeWidth={3} />
@@ -157,7 +157,7 @@ export function RightPanel({
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="SEARCH TASKS..."
-              className="w-full pl-9 pr-4 py-2 border-2 border-black bg-stone-50 text-xs uppercase focus:outline-none focus:bg-white shadow-brutal-sm"
+              className="w-full pl-9 pr-4 py-2 border-2 border-black dark:border-[#4169E1] bg-stone-50 dark:bg-[#111111] text-xs uppercase focus:outline-none focus:bg-white dark:focus:bg-[#1a1a1a] shadow-brutal-sm dark:shadow-[#ffffff]"
             />
             {searchQuery && (
               <button
@@ -177,10 +177,10 @@ export function RightPanel({
               key={f}
               onClick={() => setQuickFilter(f)}
               className={[
-                'px-3 py-1 border-2 border-black text-[10px] font-bold uppercase transition-all',
+                'px-3 py-1 border-2 border-black dark:border-[#4169E1] text-[10px] font-bold uppercase transition-all',
                 quickFilter === f
-                  ? 'bg-black text-white shadow-none'
-                  : 'bg-white shadow-brutal-sm hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal-hover',
+                  ? 'bg-black dark:bg-[#4169E1] text-white shadow-none'
+                  : 'bg-white dark:bg-black shadow-brutal-sm dark:shadow-[#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal-hover dark:hover:shadow-[4px_4px_0px_0px_#ffffff]',
               ].join(' ')}
             >
               {f.replace('_', ' ')}
@@ -199,7 +199,7 @@ export function RightPanel({
         {(pastTasks.length === 0 && futureTasks.length === 0) ? (
           <div className="flex flex-col items-center justify-center h-full select-none">
             <div
-              className="text-stone-200 leading-none tracking-tighter font-bold text-center"
+              className="text-stone-200 dark:text-stone-800 leading-none tracking-tighter font-bold text-center"
               style={{ fontSize: 'clamp(2rem, 5vw, 4rem)' }}
             >
               NOTHING HERE.
@@ -244,9 +244,9 @@ export function RightPanel({
               if (noDueDateTasks.length === 0) return null;
               return (
                 <>
-                  <div className="flex items-center gap-2 pt-6 pb-2 border-t-2 border-dashed border-black">
-                    <span className="text-[10px] font-bold bg-black text-white px-2 py-0.5 uppercase">NO DUE DATE</span>
-                    <span className="h-0.5 flex-1 bg-black" />
+                  <div className="flex items-center gap-2 pt-6 pb-2 border-t-2 border-dashed border-black dark:border-[#4169E1]">
+                    <span className="text-[10px] font-bold bg-black dark:bg-[#4169E1] text-white px-2 py-0.5 uppercase">NO DUE DATE</span>
+                    <span className="h-0.5 flex-1 bg-black dark:bg-[#4169E1]" />
                   </div>
                   {noDueDateTasks.map(task => (
                     <TaskCard

@@ -208,6 +208,36 @@ SPRING_DATASOURCE_PASSWORD=your_password
 
 ---
 
+## Roadmap
+
+- [ ] User authentication (JWT)
+- [ ] Subtasks and checklists
+- [ ] Drag-and-drop Kanban view
+- [ ] Notifications and reminders
+- [x] Dark mode toggle
+- [ ] Mobile PWA support
+
+---
+
+## Contributing
+
+Contributions are welcome! To get started:
+
+1. Fork the repository
+2. Create a feature branch
+```bash
+git checkout -b feature/your-feature-name
+```
+3. Commit your changes
+```bash
+git commit -m "feat: add your feature"
+```
+4. Push and open a Pull Request
+```bash
+git push origin feature/your-feature-name
+```
+
+---
 [Live Demo](#) · [Report Bug](https://github.com/S-Srinivasan-06/Taskflow/issues) · [Request Feature](https://github.com/S-Srinivasan-06/Taskflow/issues)
 
 ---

@@ -1,5 +1,6 @@
 import { Plus } from 'lucide-react';
 import { ClockWidget } from './ClockWidget';
+import { DarkModeToggle } from './DarkModeToggle';
 import logo from '../../assets/logo.svg';
 
 interface Props {
@@ -19,12 +20,15 @@ export function Topbar({ onNewTask, timezone, setTimezone }: Props) {
         <ClockWidget timezone={timezone} setTimezone={setTimezone} />
       </div>
 
-      <button
-        onClick={onNewTask}
-        className="flex items-center gap-2 bg-orange-500 text-black border-2 border-transparent px-4 py-1.5 font-mono text-xs font-bold shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] transition-all"
-      >
-        <Plus size={16} strokeWidth={3} /> NEW TASK
-      </button>
+      <div className="flex items-center gap-4">
+        <DarkModeToggle />
+        <button
+          onClick={onNewTask}
+          className="flex items-center gap-2 bg-orange-500 text-black border-2 border-transparent px-4 py-1.5 font-mono text-xs font-bold shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] dark:shadow-[#ffffff] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_0px_0px_#ffffff] transition-all"
+        >
+          <Plus size={16} strokeWidth={3} /> NEW TASK
+        </button>
+      </div>
     </header>
   );
 }

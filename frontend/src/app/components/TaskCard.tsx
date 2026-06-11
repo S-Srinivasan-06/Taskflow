@@ -46,10 +46,10 @@ export function TaskCard({ task, group, onEdit, onToggle }: Props) {
     <div
       onClick={onEdit}
       className={[
-        'bg-white border-2 border-black border-l-[6px]',
+        'bg-white dark:bg-black border-2 border-black dark:border-[#4169E1] border-l-[6px]',
         GROUP_ACCENT[group],
-        'shadow-brutal p-4 flex items-start gap-4 cursor-pointer',
-        'hover:-translate-x-1 hover:-translate-y-1 hover:shadow-brutal-hover',
+        'shadow-brutal dark:shadow-[#ffffff] p-4 flex items-start gap-4 cursor-pointer',
+        'hover:-translate-x-1 hover:-translate-y-1 hover:shadow-brutal-hover dark:hover:shadow-[4px_4px_0px_0px_#ffffff]',
         'transition-all duration-150',
         isDone ? 'opacity-50' : '',
       ].join(' ')}
@@ -57,9 +57,9 @@ export function TaskCard({ task, group, onEdit, onToggle }: Props) {
       <button
         onClick={onToggle}
         className={[
-          'mt-0.5 w-6 h-6 border-2 border-black flex items-center justify-center shrink-0',
-          'transition-colors shadow-brutal-sm',
-          isDone ? 'bg-black text-white' : 'bg-white hover:bg-stone-100',
+          'mt-0.5 w-6 h-6 border-2 border-black dark:border-[#4169E1] flex items-center justify-center shrink-0',
+          'transition-colors shadow-brutal-sm dark:shadow-[#ffffff]',
+          isDone ? 'bg-black dark:bg-[#4169E1] text-white' : 'bg-white dark:bg-black hover:bg-stone-100 dark:hover:bg-[#333333]',
         ].join(' ')}
         aria-label={isDone ? 'Mark pending' : 'Mark done'}
       >
@@ -70,7 +70,7 @@ export function TaskCard({ task, group, onEdit, onToggle }: Props) {
         <h3
           className={[
             'text-base font-bold leading-tight mb-1',
-            isDone ? 'line-through text-stone-500' : 'text-black',
+            isDone ? 'line-through text-stone-500' : 'text-black dark:text-[#f5f5f4]',
           ].join(' ')}
           style={{ fontFamily: "'Inter', sans-serif" }}
         >
@@ -78,7 +78,7 @@ export function TaskCard({ task, group, onEdit, onToggle }: Props) {
         </h3>
         <div className="flex flex-wrap items-center gap-3 font-mono">
           {formattedDate ? (
-            <span className="text-[11px] text-stone-600 uppercase font-bold tracking-tight">
+            <span className="text-[11px] text-stone-600 dark:text-stone-400 uppercase font-bold tracking-tight">
               {formattedDate}
             </span>
           ) : (
@@ -87,17 +87,17 @@ export function TaskCard({ task, group, onEdit, onToggle }: Props) {
             </span>
           )}
           {task.category && (
-            <span className="px-2 py-0.5 border-2 border-black bg-stone-100 text-[9px] font-bold uppercase shadow-brutal-sm">
+            <span className="px-2 py-0.5 border-2 border-black dark:border-[#4169E1] bg-stone-100 dark:bg-[#1a1a1a] text-[9px] font-bold uppercase shadow-brutal-sm dark:shadow-[#ffffff]">
               {task.category}
             </span>
           )}
           {task.status === 'IN_PROGRESS' && (
-            <span className="px-2 py-0.5 border-2 border-black bg-sky-100 text-sky-700 text-[9px] font-bold uppercase shadow-brutal-sm">
+            <span className="px-2 py-0.5 border-2 border-black dark:border-[#4169E1] bg-sky-100 dark:bg-[#0c4a6e] text-sky-700 dark:text-sky-200 text-[9px] font-bold uppercase shadow-brutal-sm dark:shadow-[#ffffff]">
               IN PROGRESS
             </span>
           )}
           {task.status === 'CANCELLED' && (
-            <span className="px-2 py-0.5 border-2 border-black bg-stone-200 text-stone-600 text-[9px] font-bold uppercase shadow-brutal-sm">
+            <span className="px-2 py-0.5 border-2 border-black dark:border-[#4169E1] bg-stone-200 dark:bg-[#333333] text-stone-600 dark:text-stone-300 text-[9px] font-bold uppercase shadow-brutal-sm dark:shadow-[#ffffff]">
               CANCELLED
             </span>
           )}
@@ -106,8 +106,8 @@ export function TaskCard({ task, group, onEdit, onToggle }: Props) {
 
       <div
         className={[
-          'px-3 py-1 border-2 border-black font-mono text-[10px] font-bold uppercase shadow-brutal-sm shrink-0',
-          PRIORITY_STYLES[task.priority] || 'bg-stone-200 text-black',
+          'px-3 py-1 border-2 border-black dark:border-[#4169E1] font-mono text-[10px] font-bold uppercase shadow-brutal-sm dark:shadow-[#ffffff] shrink-0',
+          PRIORITY_STYLES[task.priority] || 'bg-stone-200 dark:bg-[#333333] text-black dark:text-[#f5f5f4]',
         ].join(' ')}
       >
         {task.priority}

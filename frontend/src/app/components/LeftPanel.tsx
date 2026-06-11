@@ -82,14 +82,14 @@ export function LeftPanel({
 
   return (
     <aside
-      className="w-80 border-r-2 border-black bg-stone-50 flex flex-col shrink-0 overflow-y-auto"
+      className="w-80 border-r-2 border-black dark:border-[#4169E1] bg-stone-50 dark:bg-black flex flex-col shrink-0 overflow-y-auto"
       style={{ fontFamily: "'JetBrains Mono', monospace" }}
     >
       {/* Month Navigator */}
-      <div className="p-4 border-b-2 border-black flex items-center justify-between">
+      <div className="p-4 border-b-2 border-black dark:border-[#4169E1] flex items-center justify-between">
         <button
           onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))}
-          className="border-2 border-black w-7 h-7 flex items-center justify-center hover:bg-black hover:text-white transition-colors shadow-brutal-sm"
+          className="border-2 border-black dark:border-[#4169E1] w-7 h-7 flex items-center justify-center hover:bg-black hover:text-white dark:hover:bg-[#4169E1] transition-colors shadow-brutal-sm dark:shadow-[#ffffff]"
         >
           <ChevronLeft size={16} strokeWidth={3} />
         </button>
@@ -105,18 +105,18 @@ export function LeftPanel({
           {showMonthPicker && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowMonthPicker(false)} />
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 border-2 border-black bg-white shadow-brutal z-50 p-3">
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 border-2 border-black dark:border-[#4169E1] bg-white dark:bg-black shadow-brutal dark:shadow-[#ffffff] z-50 p-3">
                 <div className="flex items-center justify-between mb-2">
                   <button
                     onClick={() => setCalendarMonth(subMonths(calendarMonth, 12))}
-                    className="border-2 border-black px-2 py-1 text-xs font-bold hover:bg-black hover:text-white"
+                    className="border-2 border-black dark:border-[#4169E1] px-2 py-1 text-xs font-bold hover:bg-black hover:text-white dark:hover:bg-[#4169E1]"
                   >
                     ‹ YR
                   </button>
                   <span className="font-bold">{format(calendarMonth, 'yyyy')}</span>
                   <button
                     onClick={() => setCalendarMonth(addMonths(calendarMonth, 12))}
-                    className="border-2 border-black px-2 py-1 text-xs font-bold hover:bg-black hover:text-white"
+                    className="border-2 border-black dark:border-[#4169E1] px-2 py-1 text-xs font-bold hover:bg-black hover:text-white dark:hover:bg-[#4169E1]"
                   >
                     YR ›
                   </button>
@@ -127,9 +127,9 @@ export function LeftPanel({
                       key={i}
                       onClick={() => { setCalendarMonth(setMonth(calendarMonth, i)); setShowMonthPicker(false); }}
                       className={[
-                        'border-2 border-black py-1 text-xs font-bold uppercase',
+                        'border-2 border-black dark:border-[#4169E1] py-1 text-xs font-bold uppercase transition-colors',
                         calendarMonth.getMonth() === i
-                          ? 'bg-black text-white'
+                          ? 'bg-black dark:bg-[#4169E1] text-white'
                           : 'hover:bg-orange-500 hover:text-white',
                       ].join(' ')}
                     >
@@ -144,17 +144,17 @@ export function LeftPanel({
 
         <button
           onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))}
-          className="border-2 border-black w-7 h-7 flex items-center justify-center hover:bg-black hover:text-white transition-colors shadow-brutal-sm"
+          className="border-2 border-black dark:border-[#4169E1] w-7 h-7 flex items-center justify-center hover:bg-black hover:text-white dark:hover:bg-[#4169E1] transition-colors shadow-brutal-sm dark:shadow-[#ffffff]"
         >
           <ChevronRight size={16} strokeWidth={3} />
         </button>
       </div>
 
       {/* Calendar Grid */}
-      <div className="p-4 border-b-2 border-black bg-stone-200">
+      <div className="p-4 border-b-2 border-black dark:border-[#4169E1] bg-stone-200 dark:bg-[#333333] transition-colors">
         <div className="grid grid-cols-7 gap-1 mb-2">
           {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
-            <div key={d} className="text-center text-[10px] font-bold bg-black text-orange-500 py-1 uppercase">{d}</div>
+            <div key={d} className="text-center text-[10px] font-bold bg-black dark:bg-[#4169E1] text-orange-500 py-1 uppercase transition-colors">{d}</div>
           ))}
         </div>
         <div className="grid grid-cols-7 gap-1">
@@ -174,15 +174,15 @@ export function LeftPanel({
                 className={[
                   'aspect-square border-2 flex flex-col items-center justify-center relative transition-all text-xs font-light',
                   isCurrentMonth && !isHighlighted
-                    ? 'border-black bg-white shadow-[2px_2px_0px_0px_#000] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_#000]'
+                    ? 'border-black dark:border-[#4169E1] bg-white dark:bg-black shadow-[2px_2px_0px_0px_#000] dark:shadow-[#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_#000] dark:hover:shadow-[4px_4px_0px_0px_#ffffff]'
                     : '',
-                  !isCurrentMonth ? 'border-transparent bg-transparent text-stone-500 cursor-default' : '',
+                  !isCurrentMonth ? 'border-transparent bg-transparent text-stone-500 dark:text-stone-400 cursor-default' : '',
                   isSelected && isTodayDate
-                    ? 'border-black bg-orange-500 text-white shadow-[2px_2px_0px_0px_#000] translate-x-0 translate-y-0'
+                    ? 'border-black dark:border-[#4169E1] bg-orange-500 text-white shadow-[2px_2px_0px_0px_#000] dark:shadow-[#ffffff] translate-x-0 translate-y-0'
                     : isSelected
-                      ? 'border-black bg-yellow-400 text-black shadow-[2px_2px_0px_0px_#000] translate-x-0 translate-y-0'
+                      ? 'border-black dark:border-[#4169E1] bg-yellow-400 text-black shadow-[2px_2px_0px_0px_#000] dark:shadow-[#ffffff] translate-x-0 translate-y-0'
                       : isTodayDate
-                        ? 'border-black bg-orange-500 text-white shadow-[2px_2px_0px_0px_#000] translate-x-0 translate-y-0'
+                        ? 'border-black dark:border-[#4169E1] bg-orange-500 text-white shadow-[2px_2px_0px_0px_#000] dark:shadow-[#ffffff] translate-x-0 translate-y-0'
                         : '',
                 ].join(' ')}
               >
@@ -197,7 +197,7 @@ export function LeftPanel({
       </div>
 
       {/* Stats Progress */}
-      <div className="p-4 border-b-2 border-black space-y-3">
+      <div className="p-4 border-b-2 border-black dark:border-[#4169E1] space-y-3">
         <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-500 mb-2">PROGRESS</h3>
         {[
           { key: 'REMAINING', total: stats?.totalActive || 0 },
@@ -209,10 +209,10 @@ export function LeftPanel({
             <button
               key={val.key}
               onClick={() => setQuickFilter(val.key)}
-              className="w-full text-left cursor-pointer group flex justify-between items-center py-2 border-b-2 border-transparent hover:border-black transition-colors"
+              className="w-full text-left cursor-pointer group flex justify-between items-center py-2 border-b-2 border-transparent hover:border-black dark:hover:border-[#4169E1] transition-colors"
             >
               <span className="text-xs font-bold uppercase group-hover:text-orange-600">{val.key}</span>
-              <span className="text-[10px] font-bold text-stone-500 group-hover:text-orange-500 bg-stone-200 px-2 py-0.5 border-2 border-transparent group-hover:border-black group-hover:bg-white">{val.total}</span>
+              <span className="text-[10px] font-bold text-stone-500 group-hover:text-orange-500 bg-stone-200 dark:bg-[#333333] px-2 py-0.5 border-2 border-transparent group-hover:border-black dark:group-hover:border-[#4169E1] group-hover:bg-white dark:group-hover:bg-black transition-colors">{val.total}</span>
             </button>
         ))}
       </div>
@@ -224,8 +224,8 @@ export function LeftPanel({
           <button
             onClick={() => setActiveCategory('ALL')}
             className={[
-              'px-3 py-1 border-2 border-black text-[10px] font-bold uppercase shadow-brutal-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal-hover',
-              activeCategory === 'ALL' ? 'bg-black text-white' : 'bg-white',
+              'px-3 py-1 border-2 border-black dark:border-[#4169E1] text-[10px] font-bold uppercase shadow-brutal-sm dark:shadow-[#ffffff] transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal-hover dark:hover:shadow-[4px_4px_0px_0px_#ffffff]',
+              activeCategory === 'ALL' ? 'bg-black dark:bg-[#4169E1] text-white' : 'bg-white dark:bg-black',
             ].join(' ')}
           >
             ALL
@@ -235,8 +235,8 @@ export function LeftPanel({
               key={cat.name}
               onClick={() => setActiveCategory(cat.name)}
               className={[
-                'px-3 py-1 border-2 border-black text-[10px] font-bold uppercase shadow-brutal-sm transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal-hover flex items-center gap-1.5 group/cat',
-                activeCategory === cat.name ? 'bg-black text-white' : 'bg-white',
+                'px-3 py-1 border-2 border-black dark:border-[#4169E1] text-[10px] font-bold uppercase shadow-brutal-sm dark:shadow-[#ffffff] transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal-hover dark:hover:shadow-[4px_4px_0px_0px_#ffffff] flex items-center gap-1.5 group/cat',
+                activeCategory === cat.name ? 'bg-black dark:bg-[#4169E1] text-white' : 'bg-white dark:bg-black',
               ].join(' ')}
             >
               <div className={`w-2 h-2 ${cat.color} border border-black shrink-0`} />
@@ -253,14 +253,14 @@ export function LeftPanel({
 
         <button
           onClick={() => setShowAddCategory(true)}
-          className="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-black text-xs font-bold uppercase hover:bg-stone-100 transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-2 border-2 border-dashed border-black dark:border-[#4169E1] text-xs font-bold uppercase hover:bg-stone-100 dark:hover:bg-[#333333] transition-colors"
         >
           <Plus size={14} strokeWidth={3} /> ADD CATEGORY
         </button>
       </div>
 
       {/* Keyboard shortcuts hint */}
-      <div className="p-4 border-t-2 border-black">
+      <div className="p-4 border-t-2 border-black dark:border-[#4169E1]">
         <div className="text-[10px] text-stone-400 tracking-widest mb-1">SHORTCUTS</div>
         <div className="space-y-0.5 text-[10px] text-stone-400">
           <div>[N] New task · [/] Search · [Esc] Close</div>
@@ -270,7 +270,7 @@ export function LeftPanel({
       {/* Add Category Modal */}
       {showAddCategory && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white border-2 border-black w-full max-w-sm p-6 shadow-brutal-hover">
+          <div className="bg-white dark:bg-black border-2 border-black dark:border-[#4169E1] w-full max-w-sm p-6 shadow-brutal-hover dark:shadow-[#ffffff]">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-sm font-bold uppercase">NEW CATEGORY</h2>
               <button onClick={() => setShowAddCategory(false)} className="hover:text-red-500 transition-colors">
@@ -283,7 +283,7 @@ export function LeftPanel({
               onChange={e => setNewCatName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
               placeholder="e.g. coding, fitness"
-              className="w-full border-b-2 border-black bg-transparent py-2 text-sm mb-4 focus:outline-none focus:border-orange-500"
+              className="w-full border-b-2 border-black dark:border-[#4169E1] bg-transparent py-2 text-sm mb-4 focus:outline-none focus:border-orange-500 dark:focus:border-orange-500"
               style={{ fontFamily: "'Inter', sans-serif" }}
               autoFocus
             />
@@ -294,14 +294,14 @@ export function LeftPanel({
                   onClick={() => setNewCatColor(c)}
                   className={[
                     `w-8 h-8 ${c} border-2 transition-all`,
-                    newCatColor === c ? 'border-black shadow-brutal-sm scale-110' : 'border-transparent',
+                    newCatColor === c ? 'border-black dark:border-white shadow-brutal-sm scale-110' : 'border-transparent',
                   ].join(' ')}
                 />
               ))}
             </div>
             <button
               onClick={handleAddCategory}
-              className="w-full bg-black text-white py-2 text-xs font-bold uppercase border-2 border-black shadow-brutal hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-brutal-hover transition-all"
+              className="w-full bg-black dark:bg-[#4169E1] text-white py-2 text-xs font-bold uppercase border-2 border-black dark:border-[#4169E1] shadow-brutal dark:shadow-[#ffffff] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-brutal-hover dark:hover:shadow-[4px_4px_0px_0px_#ffffff] transition-all"
             >
               SAVE CATEGORY
             </button>

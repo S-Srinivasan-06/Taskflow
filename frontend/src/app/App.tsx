@@ -155,7 +155,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-stone-100 text-black overflow-hidden">
+    <div className="h-screen flex flex-col bg-stone-100 dark:bg-black text-black dark:text-[#f5f5f4] overflow-hidden">
       <Topbar
         onNewTask={openNewTask}
         timezone={timezone}
