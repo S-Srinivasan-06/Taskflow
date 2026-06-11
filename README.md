@@ -1,7 +1,7 @@
 <div align="center">
 
 <!-- LOGO -->
-<img width="560" height="112" alt="image" src="https://github.com/user-attachments/assets/d815285c-08b5-430d-93a0-1d32fb3d9050" />
+<img width="1120" height="224" alt="image" src="https://github.com/user-attachments/assets/d815285c-08b5-430d-93a0-1d32fb3d9050" />
 
 <br/>
 <br/>
@@ -34,18 +34,27 @@ It features a **Spring Boot REST API** on the backend and a **React + TypeScript
 ## Screenshots
 
 ### Home page
+
 <img width="1919" height="991" alt="Screenshot 2026-06-11 023814" src="https://github.com/user-attachments/assets/bf7195f2-db20-4175-9e13-a9c7d38a38ac" />
 
 ### Create/Edit tasks
+
 <img width="1920" height="988" alt="Screenshot 2026-06-11 at 02-39-44 PC version adaptation" src="https://github.com/user-attachments/assets/970ee36f-1728-4e8e-97a6-7b07a13d3526" />
 
 ### Dynamic calendar
 Click on it to view the tasks for that day. 
-<img width="474" height="557" alt="Screenshot 2026-06-11 024404" src="https://github.com/user-attachments/assets/7b1062aa-9dec-4502-a884-7e45ec425158" />
+
+<img width="237" height="278" alt="Screenshot 2026-06-11 024404" src="https://github.com/user-attachments/assets/7b1062aa-9dec-4502-a884-7e45ec425158" />
 
 ### Adjustable timezone support
 Features both local and custom time zones!
-<img width="340" height="555" alt="Screenshot 2026-06-11 024142" src="https://github.com/user-attachments/assets/fd065fb6-15cf-43e2-837f-6ebe718c8d3a" />
+
+<img width="170" height="277" alt="Screenshot 2026-06-11 024142" src="https://github.com/user-attachments/assets/fd065fb6-15cf-43e2-837f-6ebe718c8d3a" />
+
+### Toggle to dark mode! 
+<img width="1919" height="988" alt="Screenshot 2026-06-12 at 01-17-33 PC version adaptation" src="https://github.com/user-attachments/assets/87ad5269-cae0-444a-b4d2-fbf54c477e4a" />
+<img width="1919" height="988" alt="Screenshot 2026-06-12 at 01-18-10 PC version adaptation" src="https://github.com/user-attachments/assets/6e0b091b-cd01-47f9-b8f7-df5678e529c3" />
+
 
 ---
 
@@ -55,8 +64,7 @@ Features both local and custom time zones!
 - **Java 21** + **Spring Boot 3.5**
 - **Spring Data JPA** for ORM
 - **Spring Validation** for request validation
-- **PostgreSQL** (production) / **H2** (in-memory fallback for development)
-- **Lombok** for boilerplate reduction
+- **PostgreSQL** (pg18-alpine) 
 
 ### Frontend
 - **React 18** + **TypeScript**
@@ -65,13 +73,21 @@ Features both local and custom time zones!
 - **Radix UI** for accessible component primitives
 
 ### Infrastructure
-- **Docker** + **Docker Compose** for containerised deployment
+- **Docker** + **Docker Compose** for containerised deployment, and containerised testing
+- **Spring Cache** + **Redis** for caching
+
+---
+| Request Type | WITHOUT Redis (Cache Disabled) | WITH Redis (Cache Enabled) | Speedup Factor |
+| :--- | :--- | :--- | :--- |
+| **Request 1 (Initial Call)** | **68.00 ms** (Direct DB Query) | **615.35 ms** (First boot DB query + writing cache) | — |
+| **Request 2 (Subsequent Call)** | **33.29 ms** (Direct DB Query) | **24.69 ms** (Served from Redis memory) | **~1.3x faster** |
+| **Request 3 (Subsequent Call)** | **38.59 ms** (Direct DB Query) | **14.92 ms** (Served from Redis memory) | **~2.6x faster** |
 
 ---
 
 ## API Reference
 
-The backend exposes a RESTful API under the `/api/v1/tasks` base path.
+The backend exposes a RESTful API under the `/api/v1/tasks` base path. 
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -208,39 +224,6 @@ SPRING_DATASOURCE_PASSWORD=your_password
 
 ---
 
-## Roadmap
-
-- [ ] User authentication (JWT)
-- [ ] Subtasks and checklists
-- [ ] Drag-and-drop Kanban view
-- [ ] Notifications and reminders
-- [x] Dark mode toggle
-- [ ] Mobile PWA support
-
----
-
-## Contributing
-
-Contributions are welcome! To get started:
-
-1. Fork the repository
-2. Create a feature branch
-```bash
-git checkout -b feature/your-feature-name
-```
-3. Commit your changes
-```bash
-git commit -m "feat: add your feature"
-```
-4. Push and open a Pull Request
-```bash
-git push origin feature/your-feature-name
-```
-
----
-[Live Demo](#) · [Report Bug](https://github.com/S-Srinivasan-06/Taskflow/issues) · [Request Feature](https://github.com/S-Srinivasan-06/Taskflow/issues)
-
----
 
 <div align="center">
 
