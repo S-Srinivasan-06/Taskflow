@@ -2,8 +2,6 @@ services:
   postgres:
     image: postgres:18-alpine
     container_name: taskflow-db
-    env_file:
-      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -21,28 +19,25 @@ services:
   backend:
     build: .
     container_name: taskflow-backend
-    env_file:
-      - .env
     environment:
       SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
       SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
       SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-      SPRING_REDIS_HOST: redis
     ports:
       - "8081:8081"
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_started
     networks:
       - taskflow-net
 
-  redis:
-    image: redis:7-alpine
-    container_name: taskflow-redis
+  frontend:
+    build: ./frontend
+    container_name: taskflow-frontend
     ports:
-      - "6379:6379"
+      - "5173:80"
+    depends_on:
+      - backend
     networks:
       - taskflow-net
 

@@ -82,4 +82,15 @@ describe('per-user local cache', () => {
     await Promise.all([pendingWrite, disabling]);
     expect(await getCached('alice', '/tasks')).toBeUndefined();
   });
+
+  it('evicts the oldest responses above the per-user entry limit', async () => {
+    let tick = 1_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => tick++);
+    await setLocalCacheEnabled('alice', true);
+    for (let index = 0; index <= 80; index++) {
+      await putCached('alice', `/tasks?page=${index}`, [index]);
+    }
+    expect(await getCached('alice', '/tasks?page=0')).toBeUndefined();
+    expect(await getCached('alice', '/tasks?page=80')).toEqual([80]);
+  });
 });

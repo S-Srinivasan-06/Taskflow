@@ -74,23 +74,23 @@ Features both local and custom time zones!
 
 ### Infrastructure
 - **Docker** + **Docker Compose** for containerised deployment, and containerised testing
-- **Spring Cache** + **Redis** for caching
-
----
-| Request Type | WITHOUT Redis (Cache Disabled) | WITH Redis (Cache Enabled) | Speedup Factor |
-| :--- | :--- | :--- | :--- |
-| **Request 1 (Initial Call)** | **68.00 ms** (Direct DB Query) | **615.35 ms** (First boot DB query + writing cache) | — |
-| **Request 2 (Subsequent Call)** | **33.29 ms** (Direct DB Query) | **24.69 ms** (Served from Redis memory) | **~1.3x faster** |
-| **Request 3 (Subsequent Call)** | **38.59 ms** (Direct DB Query) | **14.92 ms** (Served from Redis memory) | **~2.6x faster** |
+- **Supabase PostgreSQL** support through the private `app` schema
+- **Opt-in IndexedDB cache** scoped to each signed-in user and browser
 
 ---
 
 ## API Reference
 
-The backend exposes a RESTful API under the `/api/v1/tasks` base path. 
+The backend exposes a RESTful API under `/api/v1`. Task endpoints require the
+`TASKFLOW_SESSION` cookie and mutation requests require the CSRF token returned
+by `GET /api/v1/auth/csrf`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| `POST` | `/api/v1/auth/register` | Create an account with user ID, password, and confirmation |
+| `POST` | `/api/v1/auth/login` | Sign in and issue an HttpOnly session cookie |
+| `GET` | `/api/v1/auth/me` | Retrieve the signed-in account |
+| `POST` | `/api/v1/auth/logout` | Revoke the current session |
 | `GET` | `/api/v1/tasks` | Get all tasks (paginated) |
 | `GET` | `/api/v1/tasks/search` | Search tasks with filters |
 | `GET` | `/api/v1/tasks/stats` | Retrieve task statistics |
@@ -99,7 +99,8 @@ The backend exposes a RESTful API under the `/api/v1/tasks` base path.
 | `GET` | `/api/v1/tasks/{id}` | Get a specific task by ID |
 | `POST` | `/api/v1/tasks` | Create a new task |
 | `PUT` | `/api/v1/tasks/{id}` | Update an existing task |
-| `DELETE` | `/api/v1/tasks/{id}` | Delete a task |
+| `PATCH` | `/api/v1/tasks/{id}/status` | Change status with optimistic version checking |
+| `DELETE` | `/api/v1/tasks/{id}` | Soft-delete a task with optimistic version checking |
 
 ---
 
@@ -166,7 +167,7 @@ docker-compose up --build
 http://localhost:5173
 ```
 
-The API runs on port `8080`, the frontend on `5173`, and the database on `5432`.
+The API runs on port `8081`, the frontend on `5173`, and the database on `5432`.
 
 ---
 
@@ -190,7 +191,7 @@ Run the Spring Boot application using the included Maven wrapper.
 mvnw.cmd spring-boot:run
 ```
 
-The REST API will be available at `http://localhost:8080`.
+The REST API will be available at `http://localhost:8081`.
 
 #### 3. Start the Frontend
 
@@ -220,7 +221,27 @@ POSTGRES_PASSWORD=your_password
 SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/taskflow
 SPRING_DATASOURCE_USERNAME=your_user
 SPRING_DATASOURCE_PASSWORD=your_password
+APP_COOKIE_SECURE=false
+APP_CORS_ORIGINS=http://localhost:5173
 ```
+
+Set `APP_COOKIE_SECURE=true` in HTTPS production. Serve the frontend and API
+from the same site (or configure an explicit allowed origin) so browser session
+and CSRF cookies work correctly.
+
+## Authentication and local storage
+
+Taskflow accounts use a case-insensitive user ID and a 12–72 byte password.
+Passwords are stored only as BCrypt hashes. Random session tokens are sent in
+HttpOnly, SameSite cookies; only their SHA-256 hashes are stored in PostgreSQL.
+There is intentionally no email recovery because accounts do not collect email.
+
+Task data is always authoritative in PostgreSQL. The **Save on this device**
+option stores successful read responses in IndexedDB, isolated by API origin and
+user ID. It is network-first, expires entries after 24 hours, caps each user's
+cache at 80 responses/about 4 MiB, and clears on mutation, disable, account
+change, or sign-out. Passwords, session tokens, and offline edits are never
+stored in this cache.
 
 ---
 
