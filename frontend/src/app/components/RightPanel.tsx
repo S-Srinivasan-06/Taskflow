@@ -24,8 +24,25 @@ export function RightPanel({
   quickFilter, setQuickFilter, onEditTask, onToggleStatus, onNewTask, searchRef,
 }: Props) {
 
-  const isBidirectional = !selectedDate && !searchQuery;
-  const todayStr = startOfDay(new Date()).toISOString();
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery.trim());
+  const [browserDay, setBrowserDay] = useState(() => startOfDay(new Date()).getTime());
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedSearchQuery(searchQuery.trim()), 250);
+    return () => window.clearTimeout(timeout);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    const checkBrowserDay = () => {
+      const nextDay = startOfDay(new Date()).getTime();
+      setBrowserDay(previousDay => previousDay === nextDay ? previousDay : nextDay);
+    };
+    const interval = window.setInterval(checkBrowserDay, 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const isBidirectional = !selectedDate && !debouncedSearchQuery;
+  const todayStr = new Date(browserDay).toISOString();
 
   // Query 1: Future tasks (or standard unified query if not bidirectional)
   const {
@@ -33,19 +50,21 @@ export function RightPanel({
     fetchNextPage: fetchNextFuture,
     hasNextPage: hasNextFuture,
     isFetchingNextPage: isFetchingNextFuture,
-    status: futureStatus
+    status: futureStatus,
+    isError: isFutureError,
+    refetch: refetchFuture,
   } = useInfiniteQuery({
-    queryKey: ['tasks', 'future', activeCategory, searchQuery, quickFilter, selectedDate?.toISOString()],
-    queryFn: ({ pageParam = 0 }) => taskApi.searchTasks({
+    queryKey: ['tasks', 'future', browserDay, activeCategory, debouncedSearchQuery, quickFilter, selectedDate?.toISOString()],
+    queryFn: ({ pageParam = 0, signal }) => taskApi.searchTasks({
       page: pageParam,
       size: 10,
-      search: searchQuery || undefined,
+      search: debouncedSearchQuery || undefined,
       category: activeCategory === 'ALL' ? undefined : activeCategory,
       quickFilter: quickFilter === 'ALL' ? undefined : quickFilter,
       date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined,
       startDate: isBidirectional ? todayStr : undefined,
       sort: 'dueAt,asc',
-    }),
+    }, signal),
     getNextPageParam: (lastPage) => lastPage.number + 1 < lastPage.totalPages ? lastPage.number + 1 : undefined,
     initialPageParam: 0,
   });
@@ -56,17 +75,19 @@ export function RightPanel({
     fetchNextPage: fetchNextPast,
     hasNextPage: hasNextPast,
     isFetchingNextPage: isFetchingNextPast,
-    status: pastStatus
+    status: pastStatus,
+    isError: isPastError,
+    refetch: refetchPast,
   } = useInfiniteQuery({
-    queryKey: ['tasks', 'past', activeCategory, quickFilter],
-    queryFn: ({ pageParam = 0 }) => taskApi.searchTasks({
+    queryKey: ['tasks', 'past', browserDay, activeCategory, quickFilter],
+    queryFn: ({ pageParam = 0, signal }) => taskApi.searchTasks({
       page: pageParam,
       size: 10,
       category: activeCategory === 'ALL' ? undefined : activeCategory,
       quickFilter: quickFilter === 'ALL' ? undefined : quickFilter,
       endDate: todayStr,
       sort: 'dueAt,desc',
-    }),
+    }, signal),
     getNextPageParam: (lastPage) => lastPage.number + 1 < lastPage.totalPages ? lastPage.number + 1 : undefined,
     initialPageParam: 0,
     enabled: isBidirectional,
@@ -76,6 +97,8 @@ export function RightPanel({
   const pastRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hasAutoScrolled = useRef(false);
+  const previousScrollHeight = useRef(0);
+  const previousPastTaskCount = useRef(0);
 
   useEffect(() => {
     if (!hasNextFuture || isFetchingNextFuture) return;
@@ -100,12 +123,10 @@ export function RightPanel({
   
   const totalCount = (isBidirectional ? pastData?.pages[0]?.totalElements || 0 : 0) + (futureData?.pages[0]?.totalElements || 0);
 
-  // Preserve scroll position when past tasks are prepended
-  const [previousScrollHeight, setPreviousScrollHeight] = useState(0);
-
   useLayoutEffect(() => {
     if (isBidirectional && scrollContainerRef.current) {
       const container = scrollContainerRef.current;
+      const pastTaskCount = pastTasks.length;
       
       if (!hasAutoScrolled.current && futureTasks.length > 0) {
         const todayMarker = document.getElementById('today-marker');
@@ -113,21 +134,51 @@ export function RightPanel({
           container.scrollTop = todayMarker.offsetTop - 150; // Offset for header padding
           hasAutoScrolled.current = true;
         }
-      } else if (pastTasks.length > 0 && container.scrollHeight > previousScrollHeight && hasAutoScrolled.current) {
-         // Maintain position when loading past tasks
-         container.scrollTop += container.scrollHeight - previousScrollHeight;
+      } else if (
+        pastTaskCount > previousPastTaskCount.current &&
+        previousScrollHeight.current > 0 &&
+        hasAutoScrolled.current
+      ) {
+        // Only compensate when older tasks were prepended; future-page appends
+        // should leave the user's current viewport unchanged.
+        container.scrollTop += container.scrollHeight - previousScrollHeight.current;
       }
-      setPreviousScrollHeight(container.scrollHeight);
+      previousScrollHeight.current = container.scrollHeight;
+      previousPastTaskCount.current = pastTaskCount;
     }
   }, [pastTasks.length, futureTasks.length, isBidirectional]);
 
   // Reset auto scroll on filter change
   useEffect(() => {
     hasAutoScrolled.current = false;
-    setPreviousScrollHeight(0);
-  }, [activeCategory, quickFilter, selectedDate, searchQuery]);
+    previousScrollHeight.current = 0;
+    previousPastTaskCount.current = 0;
+  }, [activeCategory, quickFilter, selectedDate, debouncedSearchQuery, browserDay]);
+
+  const retryQueries = () => {
+    if (isFutureError) void refetchFuture();
+    if (isBidirectional && isPastError) void refetchPast();
+  };
 
   const quickFilters = ['REMAINING', 'ALL', 'URGENT', 'HIGH', 'MEDIUM', 'LOW', 'COMPLETED', 'OVERDUE'];
+
+  if (isFutureError || (isBidirectional && isPastError)) {
+    return (
+      <main className='flex-1 p-6 overflow-y-auto bg-stone-100 dark:bg-black'>
+        <div className='flex h-full flex-col items-center justify-center gap-4 text-center'>
+          <div className='text-2xl font-bold'>COULD NOT LOAD TASKS.</div>
+          <p className='text-sm text-stone-500'>Check your connection and try again.</p>
+          <button
+            type='button'
+            onClick={retryQueries}
+            className='border-2 border-black dark:border-[#4169E1] bg-white dark:bg-black px-4 py-2 text-xs font-bold uppercase shadow-brutal-sm dark:shadow-[#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5'
+          >
+            RETRY
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   if (futureStatus === 'pending' || (isBidirectional && pastStatus === 'pending')) {
     return (

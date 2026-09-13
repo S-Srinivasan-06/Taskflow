@@ -6,9 +6,15 @@ import { RightPanel } from './components/RightPanel';
 import { TaskModal } from './components/TaskModal';
 import { Task, CustomCategory, TaskCreateRequest, TaskUpdateRequest } from './components/types';
 import { taskApi } from './api/taskApi';
+import { User } from './api/http';
+import { AnimatePresence } from 'motion/react';
 import { useQueryClient } from '@tanstack/react-query';
+import { isLocalCacheEnabled, loadLocalPreferences, saveLocalPreferences, setLocalCacheEnabled } from './cache/localCache';
 
-export default function App() {
+interface LocalPreferences { timezone: string; categories: CustomCategory[] }
+
+export default function App({ user, onLogout, notice }: { user: User; onLogout: () => void; notice: string }) {
+  const saved = loadLocalPreferences<LocalPreferences>(user.id);
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
@@ -19,28 +25,30 @@ export default function App() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // Timezone — persisted to localStorage
-  const [timezone, setTimezone] = useState(() =>
-    localStorage.getItem('taskflow_tz') || Intl.DateTimeFormat().resolvedOptions().timeZone
-  );
-
-  // Custom categories — persisted to localStorage
-  const [customCategories, setCustomCategories] = useState<CustomCategory[]>(() => {
-    const saved = localStorage.getItem('taskflow_categories');
-    return saved ? JSON.parse(saved) : [
-      { name: 'work', color: 'bg-blue-500' },
-      { name: 'personal', color: 'bg-purple-500' },
-      { name: 'health', color: 'bg-emerald-500' },
-    ];
-  });
+  const [timezone, setTimezone] = useState(saved?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const [customCategories, setCustomCategories] = useState<CustomCategory[]>(saved?.categories || [
+    { name: 'work', color: 'bg-blue-500' }, { name: 'personal', color: 'bg-purple-500' }, { name: 'health', color: 'bg-emerald-500' },
+  ]);
+  const [localCache, setLocalCache] = useState(() => isLocalCacheEnabled(user.id));
+  const saving = useRef(false);
+  const toggling = useRef(new Set<string>());
 
   useEffect(() => {
-    localStorage.setItem('taskflow_tz', timezone);
-  }, [timezone]);
+    if (localCache) saveLocalPreferences(user.id, { timezone, categories: customCategories } satisfies LocalPreferences);
+  }, [localCache, timezone, customCategories, user.id]);
 
-  useEffect(() => {
-    localStorage.setItem('taskflow_categories', JSON.stringify(customCategories));
-  }, [customCategories]);
+  async function toggleLocalCache(enabled: boolean) {
+    const available = await setLocalCacheEnabled(user.id, enabled);
+    if (!available) {
+      toast.error('Browser storage is unavailable', { style: toastStyle });
+      return;
+    }
+    setLocalCache(enabled);
+    if (enabled) {
+      saveLocalPreferences(user.id, { timezone, categories: customCategories } satisfies LocalPreferences);
+      toast.success('LOCAL CACHE ENABLED', { style: toastStyle });
+    } else toast.success('LOCAL DATA CLEARED', { style: toastStyle });
+  }
 
   // Initial fetch + keyboard shortcuts
   useEffect(() => {
@@ -94,59 +102,54 @@ export default function App() {
       setIsModalOpen(false);
       setEditingTask(null);
       toast.success('TASK CREATED', { style: toastStyle });
-    } catch {
-      toast.error('CREATION FAILED', { style: toastStyle });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Creation failed', { style: toastStyle });
     }
   };
 
   const handleUpdateTask = async (data: TaskUpdateRequest) => {
     if (!editingTask) return;
     try {
-      await taskApi.update(editingTask.id, data);
+      await taskApi.update(editingTask.id, { ...data, version: editingTask.version });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
       queryClient.invalidateQueries({ queryKey: ['calendar'] });
       setIsModalOpen(false);
       setEditingTask(null);
       toast.success('TASK UPDATED', { style: toastStyle });
-    } catch {
-      toast.error('UPDATE FAILED', { style: toastStyle });
+    } catch (e) {
+      await queryClient.invalidateQueries();
+      toast.error(e instanceof Error ? e.message : 'Update failed', { style: toastStyle });
     }
   };
 
   const handleDeleteTask = async (id: string) => {
     try {
-      await taskApi.delete(id);
+      if (!editingTask) return;
+      await taskApi.delete(id, editingTask.version);
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['stats'] });
       queryClient.invalidateQueries({ queryKey: ['calendar'] });
       setIsModalOpen(false);
       setEditingTask(null);
       toast.success('TASK DELETED', { style: { ...toastStyle, background: '#dc2626', color: '#fff', border: '2px solid #991b1b' } });
-    } catch {
-      toast.error('DELETE FAILED', { style: toastStyle });
+    } catch (e) {
+      await queryClient.invalidateQueries();
+      toast.error(e instanceof Error ? e.message : 'Delete failed', { style: toastStyle });
     }
   };
 
   const handleToggleStatus = async (id: string) => {
-    // We cannot easily do an optimistic update without having the full task details,
-    // so we'll just fetch it, modify it, and invalidate.
+    if (toggling.current.has(id)) return;
+    toggling.current.add(id);
     try {
-      const task = await taskApi.getById(id);
-      const newStatus = (task.status === 'DONE' || task.status === 'CANCELLED') ? 'PENDING' : 'DONE';
-      await taskApi.update(id, {
-        title: task.title,
-        description: task.description,
-        dueAt: task.dueAt,
-        category: task.category,
-        priority: task.priority,
-        status: newStatus,
-      });
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
-    } catch {
-      toast.error('STATUS UPDATE FAILED', { style: toastStyle });
-    }
+      const task = queryClient.getQueriesData<{pages: {content: Task[]}[]}>({queryKey: ['tasks']})
+        .flatMap(([,data]) => data?.pages.flatMap(page => page.content) || []).find(task => task.id === id);
+      if (!task) throw new Error('Refresh the task list and retry');
+      const status = task.status === 'DONE' || task.status === 'CANCELLED' ? 'PENDING' : 'DONE';
+      await taskApi.status(id, status, task.version);
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Status update failed', {style: toastStyle}); }
+    finally { toggling.current.delete(id); await queryClient.invalidateQueries(); }
   };
 
   const openNewTask = () => {
@@ -156,6 +159,15 @@ export default function App() {
 
   return (
     <div className="h-screen flex flex-col bg-stone-100 dark:bg-black text-black dark:text-[#f5f5f4] overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs border-b border-current">
+        <span>Signed in as {user.username}</span>
+        <span>{notice}</span>
+        <label className="flex items-center gap-2" title="Save task reads and preferences only in this browser">
+          <input type="checkbox" checked={localCache} onChange={event => void toggleLocalCache(event.target.checked)} />
+          Save on this device
+        </label>
+        <button onClick={onLogout} className="font-bold underline">Sign out</button>
+      </div>
       <Topbar
         onNewTask={openNewTask}
         timezone={timezone}
@@ -189,16 +201,23 @@ export default function App() {
         />
       </div>
 
+      <AnimatePresence>
       {isModalOpen && (
         <TaskModal
           task={editingTask}
           categories={customCategories}
           onClose={() => { setIsModalOpen(false); setEditingTask(null); }}
-          onSave={(data) => editingTask ? handleUpdateTask(data as TaskUpdateRequest) : handleCreateTask(data as TaskCreateRequest)}
+          onSave={async (data) => {
+            if (saving.current) return;
+            saving.current = true;
+            try { await (editingTask ? handleUpdateTask(data as TaskUpdateRequest) : handleCreateTask(data as TaskCreateRequest)); }
+            finally { saving.current = false; }
+          }}
           onDelete={handleDeleteTask}
         />
       )}
 
+      </AnimatePresence>
       <Toaster position="bottom-right" />
     </div>
   );

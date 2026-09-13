@@ -1,8 +1,16 @@
-import { format, parseISO } from 'date-fns';
+import {
+  addDays,
+  differenceInCalendarDays,
+  format,
+  isSameDay,
+  parseISO,
+  startOfDay,
+} from 'date-fns';
 import { Check } from 'lucide-react';
 import { Task } from './types';
 
-type TaskGroup = 'OVERDUE' | 'TODAY' | 'TOMORROW' | 'THIS_WEEK' | 'LATER' | 'SOMEDAY';
+type TaskGroup = 'PAST' | 'TODAY/FUTURE' | 'NO_DUE_DATE';
+type AccentGroup = 'OVERDUE' | 'TODAY' | 'TOMORROW' | 'THIS_WEEK' | 'LATER' | 'SOMEDAY';
 
 interface Props {
   task: Task;
@@ -18,7 +26,7 @@ const PRIORITY_STYLES: Record<string, string> = {
   URGENT: 'bg-red-600 text-white',
 };
 
-const GROUP_ACCENT: Record<TaskGroup, string> = {
+const GROUP_ACCENT: Record<AccentGroup, string> = {
   OVERDUE: 'border-l-red-600',
   TODAY: 'border-l-orange-500',
   TOMORROW: 'border-l-amber-400',
@@ -27,8 +35,28 @@ const GROUP_ACCENT: Record<TaskGroup, string> = {
   SOMEDAY: 'border-l-stone-300',
 };
 
+function getAccentGroup(task: Task, group: TaskGroup): AccentGroup {
+  if (group === 'NO_DUE_DATE' || !task.dueAt) return 'SOMEDAY';
+
+  const dueDate = parseISO(task.dueAt);
+  if (Number.isNaN(dueDate.getTime())) {
+    return group === 'PAST' ? 'OVERDUE' : 'LATER';
+  }
+
+  // date-fns compares Date objects in the browser's local timezone, which is
+  // also the timezone used when displaying the due date below.
+  const today = startOfDay(new Date());
+  const dueDay = startOfDay(dueDate);
+  if (dueDay < today) return 'OVERDUE';
+  if (isSameDay(dueDay, today)) return 'TODAY';
+  if (isSameDay(dueDay, addDays(today, 1))) return 'TOMORROW';
+  if (differenceInCalendarDays(dueDay, today) <= 7) return 'THIS_WEEK';
+  return 'LATER';
+}
+
 export function TaskCard({ task, group, onEdit, onToggle }: Props) {
   const isDone = task.status === 'DONE' || task.status === 'CANCELLED';
+  const accentGroup = getAccentGroup(task, group);
 
   let formattedDate: string | null = null;
   if (task.dueAt) {
@@ -47,7 +75,7 @@ export function TaskCard({ task, group, onEdit, onToggle }: Props) {
       onClick={onEdit}
       className={[
         'bg-white dark:bg-black border-2 border-black dark:border-[#4169E1] border-l-[6px]',
-        GROUP_ACCENT[group],
+        GROUP_ACCENT[accentGroup],
         'shadow-brutal dark:shadow-[#ffffff] p-4 flex items-start gap-4 cursor-pointer',
         'hover:-translate-x-1 hover:-translate-y-1 hover:shadow-brutal-hover dark:hover:shadow-[4px_4px_0px_0px_#ffffff]',
         'transition-all duration-150',

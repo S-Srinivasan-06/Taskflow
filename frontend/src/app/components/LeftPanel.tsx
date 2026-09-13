@@ -67,7 +67,6 @@ export function LeftPanel({
     if (!customCategories.find(c => c.name === name)) {
       const updated = [...customCategories, { name, color: newCatColor }];
       setCustomCategories(updated);
-      localStorage.setItem('taskflow_categories', JSON.stringify(updated));
     }
     setNewCatName('');
     setShowAddCategory(false);
@@ -76,7 +75,6 @@ export function LeftPanel({
   const handleRemoveCategory = (name: string) => {
     const updated = customCategories.filter(c => c.name !== name);
     setCustomCategories(updated);
-    localStorage.setItem('taskflow_categories', JSON.stringify(updated));
     if (activeCategory === name) setActiveCategory('ALL');
   };
 

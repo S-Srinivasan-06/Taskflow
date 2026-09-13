@@ -12,6 +12,7 @@ export interface Task {
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
+  version: number;
 }
 
 export interface TaskCreateRequest {
@@ -29,6 +30,7 @@ export interface TaskUpdateRequest {
   category?: string | null;
   priority?: Priority;
   status?: TaskStatus;
+  version?: number;
 }
 
 export interface CustomCategory {
