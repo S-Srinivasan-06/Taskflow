@@ -20,5 +20,7 @@ public record TaskUpdateDTO(
 
     Priority priority,
 
-    TaskStatus status
+    TaskStatus status,
+
+    @NotNull @PositiveOrZero Long version
 ) {}

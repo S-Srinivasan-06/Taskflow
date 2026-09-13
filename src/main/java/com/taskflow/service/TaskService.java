@@ -1,163 +1,100 @@
 package com.taskflow.service;
-
-import com.taskflow.dto.TaskCreateDTO;
-import com.taskflow.dto.TaskResponseDTO;
-import com.taskflow.dto.TaskUpdateDTO;
+import com.taskflow.dto.*;
 import com.taskflow.entity.Task;
-import com.taskflow.enums.Priority;
-import com.taskflow.enums.TaskStatus;
+import com.taskflow.enums.*;
 import com.taskflow.exception.TaskNotFoundException;
-import com.taskflow.repository.TaskRepository;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.taskflow.repository.*;
+import com.taskflow.security.CurrentUser;
+import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Caching;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
+import java.time.*;
+import java.util.*;
+import static com.taskflow.repository.TaskSpecifications.*;
 
-import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.UUID;
-import org.springframework.data.jpa.domain.Specification;
-import com.taskflow.dto.TaskStatsDTO;
-import com.taskflow.repository.TaskSpecifications;
-
-@Service
-@Transactional
+@Service @Transactional
 public class TaskService {
-
-    private final TaskRepository taskRepository;
-
-    public TaskService(TaskRepository taskRepository) {
-        this.taskRepository = taskRepository;
+    private final TaskRepository tasks;
+    private final CurrentUser current;
+    public TaskService(TaskRepository tasks, CurrentUser current) { this.tasks = tasks; this.current = current; }
+    private Specification<Task> scope() { return owned(current.id()); }
+    private Pageable stable(Pageable pageable) {
+        Set<String> allowed = Set.of("dueAt", "createdAt", "updatedAt", "title", "status", "priority", "id");
+        Sort sort = pageable.getSort().isSorted() ? pageable.getSort() : Sort.by("dueAt");
+        for (Sort.Order order : sort) if (!allowed.contains(order.getProperty()))
+            throw new IllegalArgumentException("Unsupported sort field");
+        if (sort.getOrderFor("id") == null) sort = sort.and(Sort.by("id"));
+        return PageRequest.of(pageable.getPageNumber(), Math.min(10, pageable.getPageSize()), sort);
     }
-
-    public Page<TaskResponseDTO> searchTasks(String search, String category, String quickFilter, LocalDate date, OffsetDateTime startDate, OffsetDateTime endDate, Pageable pageable) {
-        Specification<Task> spec = TaskSpecifications.withDynamicFilters(search, category, quickFilter, date, startDate, endDate);
-        return taskRepository.findAll(spec, pageable).map(this::mapToResponseDTO);
+    public Page<TaskResponseDTO> searchTasks(String search, String category, String quickFilter, LocalDate date,
+            OffsetDateTime startDate, OffsetDateTime endDate, Pageable pageable, ZoneId zone) {
+        return tasks.findAll(scope().and(withDynamicFilters(search, category, quickFilter, date, startDate, endDate, zone)),
+            stable(pageable)).map(this::response);
     }
-
-    @Cacheable(value = "taskStats", key = "'all_stats'")
-    public TaskStatsDTO getTaskStats() {
-        OffsetDateTime now = OffsetDateTime.now();
-        OffsetDateTime startOfDay = now.toLocalDate().atStartOfDay(now.getOffset()).toOffsetDateTime();
-        OffsetDateTime endOfDay = startOfDay.plusDays(1).minusNanos(1);
-        OffsetDateTime startOfTomorrow = startOfDay.plusDays(1);
-        OffsetDateTime endOfTomorrow = endOfDay.plusDays(1);
-        OffsetDateTime endOfWeek = startOfDay.plusDays(7);
-        
-        List<TaskStatus> doneOrCancelled = List.of(TaskStatus.DONE, TaskStatus.CANCELLED);
-
-        long totalTasks = taskRepository.countByIsDeletedFalse();
-        long completedTotal = taskRepository.countByIsDeletedFalseAndStatusIn(doneOrCancelled);
-        long totalActive = totalTasks - completedTotal;
-        long overdue = taskRepository.countByIsDeletedFalseAndDueAtBeforeAndStatusNotIn(now, doneOrCancelled);
-        long dueToday = taskRepository.countByIsDeletedFalseAndDueAtBetween(startOfDay, endOfDay);
-        long completedToday = taskRepository.countByIsDeletedFalseAndDueAtBetweenAndStatusIn(startOfDay, endOfDay, doneOrCancelled);
-        long dueTomorrow = taskRepository.countByIsDeletedFalseAndDueAtBetween(startOfTomorrow, endOfTomorrow);
-        long dueThisWeek = taskRepository.countByIsDeletedFalseAndDueAtBetween(startOfDay, endOfWeek);
-
-        return new TaskStatsDTO(totalActive, overdue, dueToday, completedToday, dueTomorrow, dueThisWeek);
+    public TaskStatsDTO getTaskStats(ZoneId zone) {
+        var today = LocalDate.now(zone);
+        var start = today.atStartOfDay(zone).toOffsetDateTime();
+        var tomorrow = today.plusDays(1).atStartOfDay(zone).toOffsetDateTime();
+        var afterTomorrow = today.plusDays(2).atStartOfDay(zone).toOffsetDateTime();
+        var week = today.plusDays(7).atStartOfDay(zone).toOffsetDateTime();
+        var owner = scope();
+        Specification<Task> overdue = (r, q, cb) -> cb.lessThan(r.get("dueAt"), OffsetDateTime.now(zone));
+        return new TaskStatsDTO(
+            tasks.count(owner.and(remaining())), tasks.count(owner.and(remaining()).and(overdue)),
+            tasks.count(owner.and(between(start, tomorrow))),
+            tasks.count(owner.and(between(start, tomorrow)).and(Specification.not(remaining()))),
+            tasks.count(owner.and(remaining()).and(between(tomorrow, afterTomorrow))),
+            tasks.count(owner.and(remaining()).and(between(start, week))));
     }
-
-    // V-04: Returns Page instead of List
     public Page<TaskResponseDTO> getAllTasks(Pageable pageable) {
-        return taskRepository.findAllActiveTasks(pageable)
-                .map(this::mapToResponseDTO);
+        return tasks.findAll(scope(), stable(pageable)).map(this::response);
     }
-
-    // V-04: Returns Page instead of List
     public Page<TaskResponseDTO> getUpNextTasks(Pageable pageable) {
-        return taskRepository.findUpNextTasks(pageable)
-                .map(this::mapToResponseDTO);
+        return tasks.findAll(scope().and(remaining()), stable(pageable)).map(this::response);
     }
-
-    @Cacheable(value = "tasksByMonth", key = "#year + '_' + #month")
-    public List<TaskResponseDTO> getTasksByMonth(int year, int month) {
-        return taskRepository.findTasksByMonth(year, month)
-                .stream()
-                .map(this::mapToResponseDTO)
-                .toList();
+    public List<TaskResponseDTO> getTasksByMonth(int year, int month, ZoneId zone) {
+        var start = LocalDate.of(year, month, 1);
+        return tasks.findAll(scope().and(between(start.atStartOfDay(zone).toOffsetDateTime(),
+            start.plusMonths(1).atStartOfDay(zone).toOffsetDateTime())), Sort.by("dueAt").and(Sort.by("id")))
+            .stream().map(this::response).toList();
     }
-
-    public TaskResponseDTO getTaskById(UUID id) {
-        Task task = findActiveTaskOrThrow(id);
-        return mapToResponseDTO(task);
-    }
-
-    @Caching(evict = {
-        @CacheEvict(value = "taskStats", allEntries = true),
-        @CacheEvict(value = "tasksByMonth", allEntries = true)
-    })
+    public TaskResponseDTO getTaskById(UUID id) { return response(find(id)); }
     public TaskResponseDTO createTask(TaskCreateDTO dto) {
-        Task task = Task.builder()
-                .title(dto.title())
-                .description(dto.description())
-                .dueAt(dto.dueAt())
-                .category(normalizeCategory(dto.category())) // V-05: normalize before save
-                .priority(dto.priority() != null ? dto.priority() : Priority.LOW)
-                .status(TaskStatus.PENDING)
-                .isDeleted(false)
-                .build();
-
-        return mapToResponseDTO(taskRepository.save(task));
+        var task = Task.builder().userId(current.id()).title(dto.title().trim()).description(dto.description())
+            .dueAt(dto.dueAt()).category(normalize(dto.category()))
+            .priority(dto.priority() == null ? Priority.LOW : dto.priority()).status(TaskStatus.PENDING).isDeleted(false).build();
+        return response(tasks.saveAndFlush(task));
     }
-
-    @Caching(evict = {
-        @CacheEvict(value = "taskStats", allEntries = true),
-        @CacheEvict(value = "tasksByMonth", allEntries = true)
-    })
     public TaskResponseDTO updateTask(UUID id, TaskUpdateDTO dto) {
-        Task task = findActiveTaskOrThrow(id);
-
-        task.setTitle(dto.title());
-        task.setDescription(dto.description());
-        task.setDueAt(dto.dueAt());
-        task.setCategory(normalizeCategory(dto.category())); // V-05: normalize before save
-        task.setPriority(dto.priority() != null ? dto.priority() : Priority.LOW);
-        if (dto.status() != null) { // preserve current status if not supplied
-            task.setStatus(dto.status());
-        }
-
-        return mapToResponseDTO(taskRepository.save(task));
+        Task task = find(id); checkVersion(task, dto.version());
+        task.setTitle(dto.title().trim()); task.setDescription(dto.description()); task.setDueAt(dto.dueAt());
+        task.setCategory(normalize(dto.category()));
+        if (dto.priority() != null) task.setPriority(dto.priority());
+        if (dto.status() != null) task.setStatus(dto.status());
+        return response(tasks.saveAndFlush(task));
     }
-
-    // V-03: Fixed optimistic locking bypass — load entity + save() so @Version is checked
-    @Caching(evict = {
-        @CacheEvict(value = "taskStats", allEntries = true),
-        @CacheEvict(value = "tasksByMonth", allEntries = true)
-    })
-    public void deleteTask(UUID id) {
-        Task task = findActiveTaskOrThrow(id);
-        task.setIsDeleted(true);
-        taskRepository.save(task);
+    public TaskResponseDTO changeStatus(UUID id, TaskStatus status, Long version) {
+        Task task = find(id); checkVersion(task, version); task.setStatus(status);
+        return response(tasks.saveAndFlush(task));
     }
-
-    private Task findActiveTaskOrThrow(UUID id) {
-        return taskRepository.findByIdAndIsDeletedFalse(id)
-                .orElseThrow(() -> new TaskNotFoundException(id));
+    public void deleteTask(UUID id, Long version) {
+        Task task = find(id); checkVersion(task, version); task.setIsDeleted(true); tasks.saveAndFlush(task);
     }
-
-    // V-05: Trim whitespace and normalize to lowercase for consistent category grouping
-    private String normalizeCategory(String category) {
-        if (category == null || category.isBlank()) return null;
-        return category.trim().toLowerCase();
+    private void checkVersion(Task task, Long version) {
+        if (version == null || !version.equals(task.getVersion()))
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Task changed; refresh it before saving");
     }
-
-    private TaskResponseDTO mapToResponseDTO(Task task) {
-        return new TaskResponseDTO(
-                task.getId(),
-                task.getTitle(),
-                task.getDescription(),
-                task.getDueAt(),
-                task.getCategory(),
-                task.getStatus(),
-                task.getPriority(),
-                task.getIsDeleted(),
-                task.getCreatedAt(),
-                task.getUpdatedAt()
-        );
+    private Task find(UUID id) {
+        return tasks.findByIdAndUserIdAndIsDeletedFalse(id, current.id()).orElseThrow(() -> new TaskNotFoundException(id));
+    }
+    private String normalize(String category) {
+        return category == null || category.isBlank() ? null : category.trim().toLowerCase(Locale.ROOT);
+    }
+    private TaskResponseDTO response(Task t) {
+        return new TaskResponseDTO(t.getId(), t.getTitle(), t.getDescription(), t.getDueAt(), t.getCategory(),
+            t.getStatus(), t.getPriority(), t.getIsDeleted(), t.getCreatedAt(), t.getUpdatedAt(), t.getVersion());
     }
 }

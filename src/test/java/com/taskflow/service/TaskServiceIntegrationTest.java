@@ -33,6 +33,9 @@ class TaskServiceIntegrationTest {
 
     @Test
     void shouldCreateAndRetrieveTask() {
+        var identity = new com.taskflow.security.CurrentUser.Identity(java.util.UUID.randomUUID(), "test");
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(
+            new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(identity, null, java.util.List.of()));
         TaskCreateDTO dto = new TaskCreateDTO("Test Task", "Description", OffsetDateTime.now().plusDays(1), "Work", Priority.HIGH);
         TaskResponseDTO created = taskService.createTask(dto);
 
@@ -41,5 +44,6 @@ class TaskServiceIntegrationTest {
 
         TaskResponseDTO retrieved = taskService.getTaskById(created.id());
         assertThat(retrieved.title()).isEqualTo("Test Task");
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
     }
 }

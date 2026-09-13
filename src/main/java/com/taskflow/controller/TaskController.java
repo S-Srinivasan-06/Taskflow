@@ -18,6 +18,10 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.time.ZoneId;
+import com.taskflow.enums.TaskStatus;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 
 @RestController
 @RequestMapping("/api/v1/tasks")
@@ -37,13 +41,14 @@ public class TaskController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endDate,
-            @PageableDefault(size = 10) Pageable pageable) {
-        return ResponseEntity.ok(taskService.searchTasks(search, category, quickFilter, date, startDate, endDate, pageable));
+            @PageableDefault(size = 10) Pageable pageable,
+            @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone) {
+        return ResponseEntity.ok(taskService.searchTasks(search, category, quickFilter, date, startDate, endDate, pageable, ZoneId.of(timezone)));
     }
 
     @GetMapping("/stats")
-    public ResponseEntity<TaskStatsDTO> getStats() {
-        return ResponseEntity.ok(taskService.getTaskStats());
+    public ResponseEntity<TaskStatsDTO> getStats(@RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone) {
+        return ResponseEntity.ok(taskService.getTaskStats(ZoneId.of(timezone)));
     }
 
     // V-04: Pageable injected by Spring; @PageableDefault sets default page size to 10
@@ -61,8 +66,9 @@ public class TaskController {
 
     @GetMapping("/calendar")
     public ResponseEntity<List<TaskResponseDTO>> getByMonth(
-            @RequestParam int year, @RequestParam int month) {
-        return ResponseEntity.ok(taskService.getTasksByMonth(year, month));
+            @RequestParam int year, @RequestParam int month,
+            @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone) {
+        return ResponseEntity.ok(taskService.getTasksByMonth(year, month, ZoneId.of(timezone)));
     }
 
     @GetMapping("/{id}")
@@ -82,8 +88,14 @@ public class TaskController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteTask(@PathVariable UUID id) {
-        taskService.deleteTask(id);
+    public ResponseEntity<Void> deleteTask(@PathVariable UUID id, @RequestParam Long version) {
+        taskService.deleteTask(id, version);
         return ResponseEntity.noContent().build();
+    }
+
+    public record StatusChange(@NotNull TaskStatus status, @NotNull @PositiveOrZero Long version) {}
+    @PatchMapping("/{id}/status")
+    public TaskResponseDTO status(@PathVariable UUID id, @Valid @RequestBody StatusChange dto) {
+        return taskService.changeStatus(id, dto.status(), dto.version());
     }
 }

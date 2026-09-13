@@ -17,6 +17,29 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleStatus(org.springframework.web.server.ResponseStatusException ex) {
+        return ResponseEntity.status(ex.getStatusCode()).body(new ErrorResponse("ERROR", OffsetDateTime.now(), ex.getReason(), null));
+    }
+
+    @ExceptionHandler({IllegalArgumentException.class, java.time.DateTimeException.class,
+        org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class,
+        org.springframework.web.bind.MissingServletRequestParameterException.class})
+    public ResponseEntity<ErrorResponse> handleBadInput(Exception ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse("ERROR", OffsetDateTime.now(), "Invalid request parameters", null));
+    }
+
+    @ExceptionHandler({org.springframework.orm.ObjectOptimisticLockingFailureException.class,
+        org.springframework.dao.DataIntegrityViolationException.class})
+    public ResponseEntity<ErrorResponse> handleConflict(Exception ex) {
+        return ResponseEntity.status(409).body(new ErrorResponse("ERROR", OffsetDateTime.now(), "Conflict: user ID unavailable or task changed; refresh and retry", null));
+    }
+
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthenticated(Exception ex) {
+        return ResponseEntity.status(401).body(new ErrorResponse("ERROR", OffsetDateTime.now(), "Sign in required", null));
+    }
+
     // V-01: SLF4J logger — logs full stack trace internally, nothing leaked to response
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 

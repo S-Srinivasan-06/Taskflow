@@ -1,86 +1,61 @@
 package com.taskflow.repository;
-
 import com.taskflow.entity.Task;
-import com.taskflow.enums.Priority;
-import com.taskflow.enums.TaskStatus;
+import com.taskflow.enums.*;
 import org.springframework.data.jpa.domain.Specification;
 import jakarta.persistence.criteria.Predicate;
-
-import java.time.LocalDate;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.*;
+import java.util.*;
 
 public class TaskSpecifications {
-
-    public static Specification<Task> withDynamicFilters(String search, String category, String quickFilter, LocalDate date, OffsetDateTime startDate, OffsetDateTime endDate) {
+    public static Specification<Task> owned(UUID userId) {
+        Objects.requireNonNull(userId);
+        return (root, query, cb) -> cb.and(cb.equal(root.get("userId"), userId), cb.isFalse(root.get("isDeleted")));
+    }
+    public static Specification<Task> remaining() {
+        return (root, query, cb) -> cb.not(root.get("status").in(TaskStatus.DONE, TaskStatus.CANCELLED));
+    }
+    public static Specification<Task> between(OffsetDateTime start, OffsetDateTime end) {
+        return (root, query, cb) -> cb.and(cb.greaterThanOrEqualTo(root.get("dueAt"), start), cb.lessThan(root.get("dueAt"), end));
+    }
+    public static Specification<Task> withDynamicFilters(String search, String category, String quickFilter,
+            LocalDate date, OffsetDateTime startDate, OffsetDateTime endDate, ZoneId zone) {
+        if (startDate != null && endDate != null && !startDate.isBefore(endDate))
+            throw new IllegalArgumentException("Start date must be before end date");
+        String filter = quickFilter == null ? "ALL" : quickFilter.trim().toUpperCase(Locale.ROOT);
+        Set<String> filters = Set.of("ALL", "COMPLETED", "REMAINING", "OVERDUE", "TODAY", "TOMORROW", "THIS WEEK", "LOW", "MEDIUM", "HIGH", "URGENT");
+        if (!filters.contains(filter)) throw new IllegalArgumentException("Unknown quick filter");
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-
-            // Always exclude deleted tasks
-            predicates.add(cb.isFalse(root.get("isDeleted")));
-
-            // Search filter
             if (search != null && !search.isBlank()) {
-                String pattern = "%" + search.toLowerCase() + "%";
-                predicates.add(cb.or(
-                        cb.like(cb.lower(root.get("title")), pattern),
-                        cb.like(cb.lower(root.get("description")), pattern)
-                ));
+                String literal = search.trim().toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+                String pattern = "%" + literal + "%";
+                predicates.add(cb.or(cb.like(cb.lower(root.get("title")), pattern, '\\'),
+                                     cb.like(cb.lower(root.get("description")), pattern, '\\')));
             }
-
-            // Category filter
-            if (category != null && !category.equalsIgnoreCase("ALL")) {
-                predicates.add(cb.equal(root.get("category"), category.toLowerCase()));
-            }
-
-            // Date filter (clicking on a specific date in calendar)
+            if (category != null && !category.isBlank() && !"ALL".equalsIgnoreCase(category.trim()))
+                predicates.add(cb.equal(root.get("category"), category.trim().toLowerCase(Locale.ROOT)));
             if (date != null) {
-                OffsetDateTime sDay = date.atStartOfDay(OffsetDateTime.now().getOffset()).toOffsetDateTime();
-                OffsetDateTime eDay = sDay.plusDays(1).minusNanos(1);
-                predicates.add(cb.between(root.get("dueAt"), sDay, eDay));
+                predicates.add(between(date.atStartOfDay(zone).toOffsetDateTime(),
+                    date.plusDays(1).atStartOfDay(zone).toOffsetDateTime()).toPredicate(root, query, cb));
             }
-
-            if (startDate != null) {
-                predicates.add(cb.or(
-                        cb.greaterThanOrEqualTo(root.get("dueAt"), startDate),
-                        cb.isNull(root.get("dueAt"))
-                ));
+            if (startDate != null)
+                predicates.add(cb.or(cb.greaterThanOrEqualTo(root.get("dueAt"), startDate), cb.isNull(root.get("dueAt"))));
+            if (endDate != null) predicates.add(cb.lessThan(root.get("dueAt"), endDate));
+            var today = LocalDate.now(zone);
+            if ("COMPLETED".equals(filter)) predicates.add(root.get("status").in(TaskStatus.DONE, TaskStatus.CANCELLED));
+            if ("REMAINING".equals(filter)) predicates.add(remaining().toPredicate(root, query, cb));
+            if ("OVERDUE".equals(filter)) {
+                predicates.add(cb.lessThan(root.get("dueAt"), OffsetDateTime.now(zone)));
+                predicates.add(remaining().toPredicate(root, query, cb));
             }
-            if (endDate != null) {
-                predicates.add(cb.lessThan(root.get("dueAt"), endDate));
+            if (Set.of("TODAY", "TOMORROW", "THIS WEEK").contains(filter)) {
+                var start = "TOMORROW".equals(filter) ? today.plusDays(1) : today;
+                var end = start.plusDays("THIS WEEK".equals(filter) ? 7 : 1);
+                predicates.add(between(start.atStartOfDay(zone).toOffsetDateTime(),
+                    end.atStartOfDay(zone).toOffsetDateTime()).toPredicate(root, query, cb));
             }
-
-            // Quick Filters
-            OffsetDateTime now = OffsetDateTime.now();
-            OffsetDateTime startOfDay = now.toLocalDate().atStartOfDay(now.getOffset()).toOffsetDateTime();
-
-            if ("COMPLETED".equalsIgnoreCase(quickFilter)) {
-                predicates.add(root.get("status").in(TaskStatus.DONE, TaskStatus.CANCELLED));
-            } else if ("REMAINING".equalsIgnoreCase(quickFilter)) {
-                predicates.add(cb.not(root.get("status").in(TaskStatus.DONE, TaskStatus.CANCELLED)));
-            } else if ("OVERDUE".equalsIgnoreCase(quickFilter)) {
-                predicates.add(cb.lessThan(root.get("dueAt"), now));
-                predicates.add(cb.not(root.get("status").in(TaskStatus.DONE, TaskStatus.CANCELLED)));
-            } else if ("TODAY".equalsIgnoreCase(quickFilter)) {
-                OffsetDateTime eDay = startOfDay.plusDays(1).minusNanos(1);
-                predicates.add(cb.between(root.get("dueAt"), startOfDay, eDay));
-            } else if ("TOMORROW".equalsIgnoreCase(quickFilter)) {
-                OffsetDateTime sTom = startOfDay.plusDays(1);
-                OffsetDateTime eTom = sTom.plusDays(1).minusNanos(1);
-                predicates.add(cb.between(root.get("dueAt"), sTom, eTom));
-            } else if ("THIS WEEK".equalsIgnoreCase(quickFilter)) {
-                OffsetDateTime eWeek = startOfDay.plusDays(7);
-                predicates.add(cb.between(root.get("dueAt"), startOfDay, eWeek));
-            } else if (quickFilter != null && !quickFilter.equalsIgnoreCase("ALL")) {
-                // Must be a priority
-                try {
-                    predicates.add(cb.equal(root.get("priority"), Priority.valueOf(quickFilter.toUpperCase())));
-                } catch (IllegalArgumentException ignored) {
-                }
-            }
-
+            if (Set.of("LOW", "MEDIUM", "HIGH", "URGENT").contains(filter))
+                predicates.add(cb.equal(root.get("priority"), Priority.valueOf(filter)));
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }

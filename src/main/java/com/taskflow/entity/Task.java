@@ -37,6 +37,10 @@ public class Task {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    // Supplied exclusively by the authenticated backend principal.
+    @Column(name = "user_id", updatable = false)
+    private UUID userId;
+
     // Brief title shown in the task list; required field
     @Column(nullable = false)
     private String title;

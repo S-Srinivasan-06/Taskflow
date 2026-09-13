@@ -15,5 +15,6 @@ public record TaskResponseDTO(
     Priority priority,
     Boolean isDeleted,
     OffsetDateTime createdAt,
-    OffsetDateTime updatedAt
+    OffsetDateTime updatedAt,
+    Long version
 ) implements java.io.Serializable {}
