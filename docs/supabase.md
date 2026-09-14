@@ -10,7 +10,7 @@ The Supabase CLI is available without a global installation through `npx`:
 
 ```powershell
 npx --yes supabase@latest login --agent no --output-format text
-npx --yes supabase@latest link --project-ref bxqdpikshuczcutymwrm
+npx --yes supabase@latest link --project-ref YOUR_PROJECT_REF
 ```
 
 The GitHub integration working directory should be `.` because `supabase/` is at

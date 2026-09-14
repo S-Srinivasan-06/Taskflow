@@ -93,4 +93,18 @@ describe('per-user local cache', () => {
     expect(await getCached('alice', '/tasks?page=0')).toBeUndefined();
     expect(await getCached('alice', '/tasks?page=80')).toEqual([80]);
   });
+
+  it('retains recently read responses during LRU eviction', async () => {
+    let tick = 1_000;
+    vi.spyOn(Date, 'now').mockImplementation(() => tick++);
+    await setLocalCacheEnabled('alice', true);
+    for (let index = 0; index < 80; index++) {
+      await putCached('alice', `/tasks?page=${index}`, [index]);
+    }
+    expect(await getCached('alice', '/tasks?page=0')).toEqual([0]);
+    await putCached('alice', '/tasks?page=80', [80]);
+
+    expect(await getCached('alice', '/tasks?page=0')).toEqual([0]);
+    expect(await getCached('alice', '/tasks?page=1')).toBeUndefined();
+  });
 });

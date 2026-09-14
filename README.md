@@ -64,7 +64,7 @@ Features both local and custom time zones!
 - **Java 21** + **Spring Boot 3.5**
 - **Spring Data JPA** for ORM
 - **Spring Validation** for request validation
-- **PostgreSQL** (pg18-alpine) 
+- **PostgreSQL 17**
 
 ### Frontend
 - **React 18** + **TypeScript**
@@ -162,12 +162,17 @@ cp .env.example .env
 docker-compose up --build
 ```
 
+The first start initializes PostgreSQL from the committed Supabase migrations.
+If you previously ran an older pre-migration local stack, back up any needed
+local data and recreate that development volume before starting this version.
+
 **4. Open in browser**
 ```
 http://localhost:5173
 ```
 
-The API runs on port `8081`, the frontend on `5173`, and the database on `5432`.
+The full stack is available at `http://localhost:5173`; Nginx proxies `/api`
+to the private backend container. PostgreSQL is private to the Compose network.
 
 ---
 
@@ -218,7 +223,7 @@ POSTGRES_USER=your_user
 POSTGRES_PASSWORD=your_password
 
 # Spring Boot
-SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/taskflow
+SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/taskflow
 SPRING_DATASOURCE_USERNAME=your_user
 SPRING_DATASOURCE_PASSWORD=your_password
 APP_COOKIE_SECURE=false

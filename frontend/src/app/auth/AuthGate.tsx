@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { authApi, setApiUser, apiUser, User, ApiError } from '../api/http';
-import { setLocalCacheEnabled } from '../cache/localCache';
+import { clearLocalCache } from '../cache/localCache';
 import App from '../App';
 
 export default function AuthGate() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+  const authChannel = useRef<BroadcastChannel | null>(null);
   const [client] = useState(() => new QueryClient({ defaultOptions: { queries: {
     retry: (count, error) => !(error instanceof ApiError && error.status < 500) && count < 1,
     staleTime: 30_000, gcTime: 300_000,
@@ -17,7 +18,7 @@ export default function AuthGate() {
     setApiUser(null);
     client.clear();
     setUser(null);
-    if (previous) void setLocalCacheEnabled(previous.id, false);
+    if (previous) void clearLocalCache(previous.id);
   }
   useEffect(() => {
     let alive = true;
@@ -29,31 +30,42 @@ export default function AuthGate() {
     void restore();
     const expired = () => { reset(); setNotice('Please sign in again.'); };
     const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('taskflow-auth') : null;
-    if (channel) channel.onmessage = expired;
+    authChannel.current = channel;
+    if (channel) channel.onmessage = event => {
+      if (event.data === 'logout') expired();
+      if (event.data === 'login') {
+        reset();
+        void authApi.me()
+          .then(next => { setApiUser(next); setUser(next); setNotice(''); })
+          .catch(() => expired());
+      }
+    };
     window.addEventListener('taskflow:session-expired', expired);
-    return () => { alive = false; channel?.close(); window.removeEventListener('taskflow:session-expired', expired); };
+    return () => { alive = false; authChannel.current = null; channel?.close(); window.removeEventListener('taskflow:session-expired', expired); };
   }, []);
   useEffect(() => {
     if (!user) return;
     const interval = window.setInterval(() => {
-      void authApi.me().then(next => { if (next.id !== user.id) reset(); }).catch(() => {});
+      void authApi.me().then(next => { if (next.id !== user.id) reset(); }).catch(error => {
+        if (error instanceof ApiError && error.status === 401) {
+          reset();
+          setNotice('Please sign in again.');
+        }
+      });
     }, 60_000);
     return () => clearInterval(interval);
   }, [user]);
-  const notifyTabs = () => {
-    if (typeof BroadcastChannel === 'undefined') return;
-    const channel = new BroadcastChannel('taskflow-auth'); channel.postMessage('changed'); channel.close();
-  };
+  const notifyTabs = (action: 'login' | 'logout') => authChannel.current?.postMessage(action);
   async function logout() {
-    try { await authApi.logout(); reset(); notifyTabs(); setNotice('Signed out.'); }
+    try { await authApi.logout(); reset(); notifyTabs('logout'); setNotice('Signed out.'); }
     catch {
-      if (user) void setLocalCacheEnabled(user.id, false);
-      setNotice('Could not end the server session. Local saved data was cleared; reconnect and retry signing out.');
+      reset(); notifyTabs('logout');
+      setNotice('Signed out locally, but the server session could not be ended. Reconnect and sign out again.');
     }
   }
   if (loading) return <div className="min-h-screen grid place-items-center">Checking your session…</div>;
   if (!user) return <LoginForm notice={notice} onSuccess={next => {
-    reset(); setApiUser(next); setUser(next); setNotice(''); notifyTabs();
+    reset(); setApiUser(next); setUser(next); setNotice(''); notifyTabs('login');
   }} />;
   return <QueryClientProvider client={client}>
     <App key={user.id} user={user} onLogout={logout} notice={notice} />

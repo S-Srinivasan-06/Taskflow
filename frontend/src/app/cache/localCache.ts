@@ -46,10 +46,11 @@ function database(): Promise<IDBDatabase> {
   });
 }
 
-function idbRequest<T>(request: IDBRequest<T>): Promise<T> {
+function transactionDone(transaction: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
   });
 }
 
@@ -64,6 +65,7 @@ export function isLocalCacheEnabled(userId: string) {
 }
 
 export async function setLocalCacheEnabled(userId: string, enabled: boolean) {
+  if (enabled && (typeof window === 'undefined' || !('indexedDB' in window))) return false;
   try {
     if (enabled) localStorage.setItem(consentKey(userId), 'enabled');
     else {
@@ -92,13 +94,23 @@ export async function getCached<T>(userId: string, key: string): Promise<T | und
   if (!isLocalCacheEnabled(userId) || !('indexedDB' in window)) return undefined;
   try {
     const db = await database();
-    const record = await idbRequest<CacheRecord | undefined>(db.transaction(STORE).objectStore(STORE).get(recordKey(userId, key)));
+    const transaction = db.transaction(STORE, 'readwrite');
+    const completed = transactionDone(transaction);
+    const store = transaction.objectStore(STORE);
+    const record = await new Promise<CacheRecord | undefined>((resolve, reject) => {
+      const request = store.get(recordKey(userId, key));
+      request.onsuccess = () => {
+        const found = request.result as CacheRecord | undefined;
+        if (found?.expiresAt && found.expiresAt <= Date.now()) store.delete(found.key);
+        else if (found) store.put({ ...found, touchedAt: Date.now() });
+        resolve(found);
+      };
+      request.onerror = () => reject(request.error);
+    });
+    await completed;
     db.close();
     if (!record) return undefined;
-    if (record.expiresAt <= Date.now()) {
-      void deleteCached(userId, key);
-      return undefined;
-    }
+    if (record.expiresAt <= Date.now()) return undefined;
     return record.value as T;
   } catch { return undefined; }
 }
@@ -116,11 +128,7 @@ export function putCached(userId: string, key: string, value: unknown) {
       bytes: new TextEncoder().encode(serialized).byteLength,
       expiresAt: Date.now() + TTL_MS, touchedAt: Date.now(),
     } satisfies CacheRecord);
-    await new Promise<void>((resolve, reject) => {
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
-      transaction.onabort = () => reject(transaction.error);
-    });
+    await transactionDone(transaction);
     await prune(db, owner);
     db.close();
   });
@@ -130,7 +138,9 @@ export function deleteCached(userId: string, key: string) {
   return enqueue(async () => {
     if (!('indexedDB' in window)) return;
     const db = await database();
-    await idbRequest(db.transaction(STORE, 'readwrite').objectStore(STORE).delete(recordKey(userId, key)));
+    const transaction = db.transaction(STORE, 'readwrite');
+    transaction.objectStore(STORE).delete(recordKey(userId, key));
+    await transactionDone(transaction);
     db.close();
   });
 }
@@ -147,24 +157,29 @@ export function clearLocalCache(userId: string) {
       transaction.objectStore(STORE).delete(cursor.result.primaryKey);
       cursor.result.continue();
     };
-    await new Promise<void>((resolve, reject) => {
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => reject(transaction.error);
-      transaction.onabort = () => reject(transaction.error);
-    });
+    await transactionDone(transaction);
     db.close();
   });
 }
 
 async function prune(db: IDBDatabase, owner: string) {
   const transaction = db.transaction(STORE, 'readwrite');
-  const records = await idbRequest<CacheRecord[]>(transaction.objectStore(STORE).index('owner').getAll(owner));
-  records.sort((a, b) => b.touchedAt - a.touchedAt);
-  let bytes = 0;
-  records.forEach((record, index) => {
-    bytes += record.bytes;
-    if (record.expiresAt <= Date.now() || index >= MAX_ENTRIES || bytes > MAX_BYTES) {
-      transaction.objectStore(STORE).delete(record.key);
+  const store = transaction.objectStore(STORE);
+  const request = store.index('owner').getAll(owner);
+  request.onsuccess = () => {
+    const now = Date.now();
+    const records = (request.result as CacheRecord[]).sort((a, b) => b.touchedAt - a.touchedAt);
+    let retainedEntries = 0;
+    let retainedBytes = 0;
+    for (const record of records) {
+      const keep = record.expiresAt > now
+        && retainedEntries < MAX_ENTRIES
+        && retainedBytes + record.bytes <= MAX_BYTES;
+      if (keep) {
+        retainedEntries++;
+        retainedBytes += record.bytes;
+      } else store.delete(record.key);
     }
-  });
+  };
+  await transactionDone(transaction);
 }

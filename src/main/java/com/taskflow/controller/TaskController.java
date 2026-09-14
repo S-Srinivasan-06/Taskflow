@@ -3,9 +3,9 @@ package com.taskflow.controller;
 import com.taskflow.dto.TaskCreateDTO;
 import com.taskflow.dto.TaskResponseDTO;
 import com.taskflow.dto.TaskUpdateDTO;
+import com.taskflow.dto.PageResponseDTO;
 import com.taskflow.service.TaskService;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -34,7 +34,7 @@ public class TaskController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<Page<TaskResponseDTO>> searchTasks(
+    public ResponseEntity<PageResponseDTO<TaskResponseDTO>> searchTasks(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String quickFilter,
@@ -43,7 +43,8 @@ public class TaskController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endDate,
             @PageableDefault(size = 10) Pageable pageable,
             @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone) {
-        return ResponseEntity.ok(taskService.searchTasks(search, category, quickFilter, date, startDate, endDate, pageable, ZoneId.of(timezone)));
+        return ResponseEntity.ok(PageResponseDTO.from(taskService.searchTasks(
+                search, category, quickFilter, date, startDate, endDate, pageable, ZoneId.of(timezone))));
     }
 
     @GetMapping("/stats")
@@ -53,15 +54,15 @@ public class TaskController {
 
     // V-04: Pageable injected by Spring; @PageableDefault sets default page size to 10
     @GetMapping
-    public ResponseEntity<Page<TaskResponseDTO>> getAllTasks(
+    public ResponseEntity<PageResponseDTO<TaskResponseDTO>> getAllTasks(
             @PageableDefault(size = 10) Pageable pageable) {
-        return ResponseEntity.ok(taskService.getAllTasks(pageable));
+        return ResponseEntity.ok(PageResponseDTO.from(taskService.getAllTasks(pageable)));
     }
 
     @GetMapping("/up-next")
-    public ResponseEntity<Page<TaskResponseDTO>> getUpNext(
+    public ResponseEntity<PageResponseDTO<TaskResponseDTO>> getUpNext(
             @PageableDefault(size = 10) Pageable pageable) {
-        return ResponseEntity.ok(taskService.getUpNextTasks(pageable));
+        return ResponseEntity.ok(PageResponseDTO.from(taskService.getUpNextTasks(pageable)));
     }
 
     @GetMapping("/calendar")

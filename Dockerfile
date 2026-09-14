@@ -22,10 +22,9 @@ WORKDIR /app
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 
 # Copy the built JAR from Stage 1
-COPY --from=build /app/target/*.jar app.jar
+COPY --chown=appuser:appgroup --from=build /app/target/*.jar app.jar
 
-# Set ownership to the non-root user
-RUN chown -R appuser:appgroup /app
+# Run as the unprivileged application user
 USER appuser
 
 EXPOSE 8081

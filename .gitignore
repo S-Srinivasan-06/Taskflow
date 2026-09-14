@@ -25,6 +25,7 @@ node_modules/
 frontend/dist/
 
 # Codebase Documentation
+Agents.md
 codebase.md
 frontend-codebase.md
 
