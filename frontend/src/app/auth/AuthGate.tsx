@@ -81,10 +81,15 @@ function LoginForm({ notice, onSuccess }: { notice: string; onSuccess: (user: Us
   const [busy, setBusy] = useState(false);
   async function submit(event: React.FormEvent) {
     event.preventDefault(); if (busy) return;
+    const userId = username.trim();
+    if (!/^[A-Za-z0-9_.-]{3,32}$/.test(userId)) {
+      setError('User ID must be 3–32 letters, numbers, dots, underscores or hyphens.');
+      return;
+    }
     if (signup && password !== confirmation) { setError('Passwords do not match.'); return; }
     if (new TextEncoder().encode(password).length > 72) { setError('Password must be at most 72 UTF-8 bytes.'); return; }
     setBusy(true); setError('');
-    try { onSuccess(await (signup ? authApi.register(username, password, confirmation) : authApi.login(username, password))); }
+    try { onSuccess(await (signup ? authApi.register(userId, password, confirmation) : authApi.login(userId, password))); }
     catch (e) { setError(e instanceof Error ? e.message : 'Unable to sign in'); }
     finally { setBusy(false); }
   }
@@ -95,7 +100,17 @@ function LoginForm({ notice, onSuccess }: { notice: string; onSuccess: (user: Us
       <h2 className="text-xl font-bold">{signup ? 'Create your account' : 'Sign in'}</h2>
       {(error || notice) && <p role="alert" className="text-red-700">{error || notice}</p>}
       <label className="block font-bold">User ID
-        <input className={inputStyle} autoComplete="username" required pattern={'[A-Za-z0-9_.\\-]{3,32}'} minLength={3} maxLength={32} value={username} onChange={e => setUsername(e.target.value)} />
+        <input
+          className={inputStyle}
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
+          required
+          minLength={3}
+          maxLength={32}
+          value={username}
+          onChange={e => setUsername(e.target.value)}
+        />
       </label>
       <p className="text-xs">3–32 letters, numbers, dots, underscores or hyphens. Case insensitive.</p>
       <label className="block font-bold">Password
