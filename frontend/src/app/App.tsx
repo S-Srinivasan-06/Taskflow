@@ -13,7 +13,7 @@ import { isLocalCacheEnabled, loadLocalPreferences, saveLocalPreferences, setLoc
 
 interface LocalPreferences { timezone: string; categories: CustomCategory[] }
 
-export default function App({ user, onLogout, notice }: { user: User; onLogout: () => void; notice: string }) {
+export default function App({ user, onLogout }: { user: User; onLogout: () => void; notice: string }) {
   const saved = loadLocalPreferences<LocalPreferences>(user.id);
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -158,20 +158,15 @@ export default function App({ user, onLogout, notice }: { user: User; onLogout: 
   };
 
   return (
-    <div className="h-screen flex flex-col bg-stone-100 dark:bg-black text-black dark:text-[#f5f5f4] overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs border-b border-current">
-        <span>Signed in as {user.username}</span>
-        <span>{notice}</span>
-        <label className="flex items-center gap-2" title="Save task reads and preferences only in this browser">
-          <input type="checkbox" checked={localCache} onChange={event => void toggleLocalCache(event.target.checked)} />
-          Save on this device
-        </label>
-        <button onClick={onLogout} className="font-bold underline">Sign out</button>
-      </div>
+    <div className="h-screen flex flex-col bg-stone-100 dark:bg-[#121316] text-black dark:text-[#f5f5f4] overflow-hidden">
       <Topbar
         onNewTask={openNewTask}
         timezone={timezone}
         setTimezone={setTimezone}
+        username={user.username}
+        localCache={localCache}
+        onLocalCacheChange={enabled => void toggleLocalCache(enabled)}
+        onLogout={onLogout}
       />
 
       <div className="flex-1 flex overflow-hidden">

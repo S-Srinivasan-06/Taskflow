@@ -23,6 +23,32 @@
   box-shadow: 3px 3px 0px #000;
 }
 
+/* Taskflow dark palette: charcoal surfaces, neutral borders and orange focus. */
+.dark [class~="dark:bg-black"] { background-color: #18191d; }
+.dark [class~="dark:bg-[#111111]"] { background-color: #202126; }
+.dark [class~="dark:bg-[#1a1a1a]"] { background-color: #24252a; }
+.dark [class~="dark:bg-[#333333]"] { background-color: #292a30; }
+.dark [class~="dark:bg-[#4169E1]"] { background-color: #3f3f46; }
+.dark [class~="dark:border-[#4169E1]"] { border-color: #52525b; }
+.dark [class~="dark:text-[#f5f5f4]"] { color: #f4f4f5; }
+.dark [class~="dark:shadow-[#ffffff]"] { --tw-shadow-color: #09090b; }
+.dark [class~="dark:hover:bg-[#4169E1]"]:hover { background-color: #52525b; }
+.dark [class~="dark:hover:border-[#4169E1]"]:hover { border-color: #71717a; }
+.dark [class~="dark:hover:shadow-[4px_4px_0px_0px_#ffffff]"]:hover {
+  box-shadow: 4px 4px 0 0 #09090b;
+}
+.dark .group:hover [class~="dark:group-hover:border-[#4169E1]"] { border-color: #71717a; }
+.dark ::-webkit-scrollbar-track {
+  background: #18191d;
+  border-left-color: #52525b;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #3f3f46;
+  border-color: #71717a;
+  box-shadow: 2px 2px 0 #09090b;
+}
+.dark ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+
 /* Replace default focus rings with brutalist outlines */
 *:focus-visible {
   outline: 2px solid #F97316;
