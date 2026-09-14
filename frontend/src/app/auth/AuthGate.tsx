@@ -95,7 +95,7 @@ function LoginForm({ notice, onSuccess }: { notice: string; onSuccess: (user: Us
       <h2 className="text-xl font-bold">{signup ? 'Create your account' : 'Sign in'}</h2>
       {(error || notice) && <p role="alert" className="text-red-700">{error || notice}</p>}
       <label className="block font-bold">User ID
-        <input className={inputStyle} autoComplete="username" required pattern="[A-Za-z0-9_.-]{3,32}" minLength={3} maxLength={32} value={username} onChange={e => setUsername(e.target.value)} />
+        <input className={inputStyle} autoComplete="username" required pattern={'[A-Za-z0-9_.\\-]{3,32}'} minLength={3} maxLength={32} value={username} onChange={e => setUsername(e.target.value)} />
       </label>
       <p className="text-xs">3–32 letters, numbers, dots, underscores or hyphens. Case insensitive.</p>
       <label className="block font-bold">Password
