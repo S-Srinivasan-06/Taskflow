@@ -1,3 +1,106 @@
+TASKFLOW - MODEL HANDOFF AND PROGRESS
+Updated: 2026-09-15
+
+PURPOSE
+
+This file is the durable handoff for the next model/agent. It supersedes the old
+filename problems.txt. The detailed audit below is retained for traceability, but
+its original pre-fix evidence is historical; use the current status in this
+section as the source of truth.
+
+CURRENT REPOSITORY STATE
+
+- Repository: C:/Coding/Taskflow
+- Remote: https://github.com/S-Srinivasan-06/Taskflow
+- Branch: main
+- HEAD and origin/main: c75bd9c - fix: resolve audit findings and prepare free deployment
+- Working tree was clean after the push.
+- Agents.md is intentionally ignored by .gitignore and must not be committed.
+- No passwords, Supabase tokens, proxy secrets, or .env files were committed.
+
+ARCHITECTURE NOW IMPLEMENTED
+
+- Frontend: Vite/React under frontend/, intended for Vercel.
+- Browser requests stay same-origin at /api/v1.
+- frontend/api/[...path].mjs proxies /api/* to Render and forwards cookies,
+  CSRF headers, and a verified client address.
+- Backend: Spring Boot Docker service, intended for Render.
+- Database: Supabase PostgreSQL with private app schema and the additive migration
+  supabase/migrations/20260915120000_harden_runtime.sql.
+- Local development: Docker Compose PostgreSQL + migration job + backend + Nginx
+  frontend; local URL is http://localhost:5173.
+- Browser local cache: opt-in, per-origin/API/user IndexedDB; it contains cached
+  task responses/preferences only, never passwords, cookies, or offline mutations.
+
+RESOLVED IN THIS FIX PASS
+
+- Vercel-to-Render same-origin proxy and deployment manifests were added.
+- Dynamic PaaS port handling, readiness/liveness probes, schema-version gating,
+  request IDs, private no-store responses, and structured request logging were added.
+- Trusted proxy validation prevents direct backend access without the shared secret;
+  login/register throttling uses a shared PostgreSQL rate-limit store.
+- Session identity lookup was consolidated; BCrypt, HttpOnly session cookies, CSRF,
+  ownership checks, optimistic locking, and cross-user isolation remain enforced.
+- Task quotas, non-null ownership enforcement when legacy data permits, completion
+  timestamps, correct completed-today/statistics/filter semantics, explicit undated
+  search behavior, and compact calendar results were added.
+- IndexedDB cache revision fencing prevents stale GET repopulation after mutations;
+  expired-record sweeps, preference validation, deletion-error reporting, request
+  timeouts, cache invalidation, cross-tab mutation events, and stale-data UI were added.
+- Mobile layout/drawer behavior, responsive topbar/panels, accessible task controls,
+  dialog semantics/focus handling, labels, keyboard actions, timezone handling, and
+  optimistic-conflict recovery were improved.
+- Supabase migration was applied successfully to the linked project
+  (project ref bxqdpikshuczcutymwrm); the remote migration ledger matches local.
+- Docker Compose migration startup was repaired after correcting escaped environment
+  substitutions. Local containers now start healthy.
+
+VALIDATION EVIDENCE
+
+- Backend: 14 Maven tests passed, including PostgreSQL/Testcontainers integration.
+- Frontend: 10 Vitest tests passed.
+- Frontend TypeScript check and production build passed.
+- Production npm audit reported 0 vulnerabilities.
+- Docker images built; postgres, backend, and frontend containers are healthy.
+- Local API smoke test returned HTTP 200 for CSRF; a generated disposable user
+  registered (201), created a dummy task (201), and listed it while authenticated.
+- `git diff --check` and staged secret-pattern review passed.
+- Commit c75bd9c was pushed to origin/main.
+- GitHub Actions status was not queried because the local gh CLI is unavailable;
+  inspect the Actions tab for c75bd9c when convenient.
+
+REMAINING REQUIRED BEFORE PRODUCTION
+
+1. In Supabase SQL editor, assign a strong private password to role taskflow_app.
+   Never place that password in Git, this file, chat, or frontend variables.
+2. Create the Render service from render.yaml. Set SPRING_PROFILES_ACTIVE to
+   supabase,render, the Supabase URL/username/password, and a random
+   TASKFLOW_PROXY_SECRET of at least 32 characters. Keep the same proxy secret for
+   Vercel. Prefer the taskflow_app role using the Session pooler username format
+   taskflow_app.PROJECT_REF.
+3. Deploy/import frontend/ in Vercel. Set RENDER_BACKEND_URL to the Render URL and
+   TASKFLOW_PROXY_SECRET to the exact matching value. Set the project root to frontend.
+4. Perform live smoke tests on the Vercel domain: register, sign in, create/edit/
+   complete/delete a task, reload, sign out, sign back in, and test another account
+   cannot access the first account's tasks. Confirm Secure/HttpOnly cookies.
+
+OPTIONAL FOLLOW-UP
+
+- Add E2E, component, accessibility, and lint suites; pin Docker/action dependencies
+  by digest; add CSP/Permissions-Policy at the TLS edge; add metrics/DB-pool telemetry.
+- Consider reduced-motion styling, duplicate timezone-key cleanup, calendar-grid
+  refinement, bundle-size work, and distinguishing stale-CSRF from other 403 errors.
+
+TASKS FOR THE NEXT MODEL
+
+- Do not redo the completed audit or rewrite application architecture.
+- Start with provider configuration and live deployment verification above.
+- Before any code change, inspect this handoff, `docs/deployment.md`, `render.yaml`,
+  `frontend/vercel.json`, and the latest commit.
+- Preserve the secret-handling rules and keep Agents.md ignored.
+
+--- HISTORICAL AUDIT BELOW ---
+
 TASKFLOW - CONSOLIDATED PROBLEM REPORT
 Generated: 2026-09-15
 
