@@ -149,9 +149,12 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
   };
 
   const titleRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setTimeout(() => titleRef.current?.focus(), 100);
+    const previous = document.activeElement as HTMLElement | null;
+    const timer = setTimeout(() => titleRef.current?.focus(), 100);
+    return () => { clearTimeout(timer); previous?.focus(); };
   }, []);
 
   useEffect(() => {
@@ -223,6 +226,15 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
+    if (e.key === 'Tab' && dialogRef.current) {
+      const items = [...dialogRef.current.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])')];
+      if (items.length) {
+        const first = items[0], last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey && e.target instanceof HTMLInputElement) {
       e.preventDefault();
       handleSubmit();
@@ -231,8 +243,12 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-8 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-8 bg-black/60 backdrop-blur-sm" onClick={onClose}>
         <motion.div
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="task-modal-title"
           key="modal"
           initial={{ y: -40, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -244,7 +260,7 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
         >
           {/* Header */}
           <div className="flex justify-between items-center p-4 border-b-4 border-black dark:border-[#4169E1] bg-white dark:bg-black shrink-0">
-            <h2 className="text-xl font-bold uppercase tracking-widest">{isEdit ? 'EDIT TASK' : 'NEW TASK'}</h2>
+            <h2 id="task-modal-title" className="text-xl font-bold uppercase tracking-widest">{isEdit ? 'EDIT TASK' : 'NEW TASK'}</h2>
             <button
               onClick={onClose}
               className="p-1 border-2 border-transparent hover:border-black dark:hover:border-[#4169E1] hover:bg-black dark:hover:bg-[#4169E1] hover:text-white transition-all"
@@ -259,6 +275,7 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
             {/* Title */}
             <div>
               <input
+                aria-label="Task title"
                 ref={titleRef}
                 type="text"
                 value={title}
@@ -278,6 +295,7 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
             {/* Description */}
             <div>
               <textarea
+                aria-label="Task description"
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 placeholder="Description (optional)..."

@@ -14,7 +14,7 @@ interface Props {
   quickFilter: string;
   setQuickFilter: (q: string) => void;
   onEditTask: (task: Task) => void;
-  onToggleStatus: (id: string) => void;
+  onToggleStatus: (task: Task) => void;
   onNewTask: () => void;
   searchRef: RefObject<HTMLInputElement | null>;
 }
@@ -63,6 +63,7 @@ export function RightPanel({
       quickFilter: quickFilter === 'ALL' ? undefined : quickFilter,
       date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined,
       startDate: isBidirectional ? todayStr : undefined,
+      includeUndated: isBidirectional,
       sort: 'dueAt,asc',
     }, signal),
     getNextPageParam: (lastPage) => lastPage.number + 1 < lastPage.totalPages ? lastPage.number + 1 : undefined,
@@ -194,7 +195,7 @@ export function RightPanel({
 
   return (
     <main
-      className="flex-1 flex flex-col bg-stone-100 dark:bg-black overflow-hidden relative"
+      className="flex-1 min-w-0 min-h-0 flex flex-col bg-stone-100 dark:bg-black overflow-hidden relative"
       style={{ fontFamily: "'JetBrains Mono', monospace" }}
     >
       {/* Toolbar */}
@@ -205,6 +206,8 @@ export function RightPanel({
             <input
               ref={searchRef as any}
               type="text"
+              aria-label="Search tasks"
+              maxLength={255}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="SEARCH TASKS..."
@@ -212,6 +215,7 @@ export function RightPanel({
             />
             {searchQuery && (
               <button
+                aria-label="Clear search"
                 onClick={() => setSearchQuery('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-black text-xs font-bold"
               >
@@ -274,7 +278,7 @@ export function RightPanel({
                 task={task}
                 group="PAST"
                 onEdit={() => onEditTask(task)}
-                onToggle={e => { e.stopPropagation(); onToggleStatus(task.id); }}
+                onToggle={e => { e.stopPropagation(); onToggleStatus(task); }}
               />
             ))}
 
@@ -286,7 +290,7 @@ export function RightPanel({
                 task={task}
                 group="TODAY/FUTURE"
                 onEdit={() => onEditTask(task)}
-                onToggle={e => { e.stopPropagation(); onToggleStatus(task.id); }}
+                onToggle={e => { e.stopPropagation(); onToggleStatus(task); }}
               />
             ))}
 
@@ -305,7 +309,7 @@ export function RightPanel({
                       task={task}
                       group="NO_DUE_DATE"
                       onEdit={() => onEditTask(task)}
-                      onToggle={e => { e.stopPropagation(); onToggleStatus(task.id); }}
+                      onToggle={e => { e.stopPropagation(); onToggleStatus(task); }}
                     />
                   ))}
                 </>

@@ -17,6 +17,8 @@ import static com.taskflow.repository.TaskSpecifications.*;
 
 @Service @Transactional
 public class TaskService {
+    @org.springframework.beans.factory.annotation.Value("${app.max-tasks-per-user:2000}")
+    private long maxTasksPerUser = 2000;
     private final TaskRepository tasks;
     private final CurrentUser current;
     public TaskService(TaskRepository tasks, CurrentUser current) { this.tasks = tasks; this.current = current; }
@@ -31,7 +33,12 @@ public class TaskService {
     }
     public Page<TaskResponseDTO> searchTasks(String search, String category, String quickFilter, LocalDate date,
             OffsetDateTime startDate, OffsetDateTime endDate, Pageable pageable, ZoneId zone) {
-        return tasks.findAll(scope().and(withDynamicFilters(search, category, quickFilter, date, startDate, endDate, zone)),
+        return searchTasks(search, category, quickFilter, date, startDate, endDate, pageable, zone, false);
+    }
+    public Page<TaskResponseDTO> searchTasks(String search, String category, String quickFilter, LocalDate date,
+            OffsetDateTime startDate, OffsetDateTime endDate, Pageable pageable, ZoneId zone, boolean includeUndated) {
+        if (search != null && search.length() > 255) throw new IllegalArgumentException("Search is too long");
+        return tasks.findAll(scope().and(withDynamicFilters(search, category, quickFilter, date, startDate, endDate, zone, includeUndated)),
             stable(pageable)).map(this::response);
     }
     public TaskStatsDTO getTaskStats(ZoneId zone) {
@@ -40,14 +47,7 @@ public class TaskService {
         var tomorrow = today.plusDays(1).atStartOfDay(zone).toOffsetDateTime();
         var afterTomorrow = today.plusDays(2).atStartOfDay(zone).toOffsetDateTime();
         var week = today.plusDays(7).atStartOfDay(zone).toOffsetDateTime();
-        var owner = scope();
-        Specification<Task> overdue = (r, q, cb) -> cb.lessThan(r.get("dueAt"), OffsetDateTime.now(zone));
-        return new TaskStatsDTO(
-            tasks.count(owner.and(remaining())), tasks.count(owner.and(remaining()).and(overdue)),
-            tasks.count(owner.and(between(start, tomorrow))),
-            tasks.count(owner.and(between(start, tomorrow)).and(Specification.not(remaining()))),
-            tasks.count(owner.and(remaining()).and(between(tomorrow, afterTomorrow))),
-            tasks.count(owner.and(remaining()).and(between(start, week))));
+        return tasks.statistics(current.id(), OffsetDateTime.now(zone), start, tomorrow, afterTomorrow, week);
     }
     public Page<TaskResponseDTO> getAllTasks(Pageable pageable) {
         return tasks.findAll(scope(), stable(pageable)).map(this::response);
@@ -55,14 +55,20 @@ public class TaskService {
     public Page<TaskResponseDTO> getUpNextTasks(Pageable pageable) {
         return tasks.findAll(scope().and(remaining()), stable(pageable)).map(this::response);
     }
-    public List<TaskResponseDTO> getTasksByMonth(int year, int month, ZoneId zone) {
+    public List<CalendarDayDTO> getTasksByMonth(int year, int month, ZoneId zone) {
+        if (year < 1 || year > 9999) throw new IllegalArgumentException("Invalid year");
         var start = LocalDate.of(year, month, 1);
-        return tasks.findAll(scope().and(between(start.atStartOfDay(zone).toOffsetDateTime(),
-            start.plusMonths(1).atStartOfDay(zone).toOffsetDateTime())), Sort.by("dueAt").and(Sort.by("id")))
-            .stream().map(this::response).toList();
+        return tasks.calendar(current.id(), start.atStartOfDay(zone).toOffsetDateTime(),
+            start.plusMonths(1).atStartOfDay(zone).toOffsetDateTime(), zone.getId()).stream()
+            .map(day -> new CalendarDayDTO(day.getDate(), day.getRemaining())).toList();
     }
     public TaskResponseDTO getTaskById(UUID id) { return response(find(id)); }
     public TaskResponseDTO createTask(TaskCreateDTO dto) {
+        // The account row lock serializes quota checks with concurrent creations.
+        tasks.lockOwner(current.id());
+        if (tasks.countByUserId(current.id()) >= maxTasksPerUser)
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                "Account task storage limit reached (including deleted tasks). Contact the administrator.");
         var task = Task.builder().userId(current.id()).title(dto.title().trim()).description(dto.description())
             .dueAt(dto.dueAt()).category(normalize(dto.category()))
             .priority(dto.priority() == null ? Priority.LOW : dto.priority()).status(TaskStatus.PENDING).isDeleted(false).build();
@@ -73,11 +79,11 @@ public class TaskService {
         task.setTitle(dto.title().trim()); task.setDescription(dto.description()); task.setDueAt(dto.dueAt());
         task.setCategory(normalize(dto.category()));
         if (dto.priority() != null) task.setPriority(dto.priority());
-        if (dto.status() != null) task.setStatus(dto.status());
+        if (dto.status() != null) transition(task, dto.status());
         return response(tasks.saveAndFlush(task));
     }
     public TaskResponseDTO changeStatus(UUID id, TaskStatus status, Long version) {
-        Task task = find(id); checkVersion(task, version); task.setStatus(status);
+        Task task = find(id); checkVersion(task, version); transition(task, status);
         return response(tasks.saveAndFlush(task));
     }
     public void deleteTask(UUID id, Long version) {
@@ -86,6 +92,12 @@ public class TaskService {
     private void checkVersion(Task task, Long version) {
         if (version == null || !version.equals(task.getVersion()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Task changed; refresh it before saving");
+    }
+    private void transition(Task task, TaskStatus status) {
+        if (status == TaskStatus.DONE && task.getStatus() != TaskStatus.DONE)
+            task.setCompletedAt(OffsetDateTime.now(ZoneOffset.UTC));
+        else if (status != TaskStatus.DONE) task.setCompletedAt(null);
+        task.setStatus(status);
     }
     private Task find(UUID id) {
         return tasks.findByIdAndUserIdAndIsDeletedFalse(id, current.id()).orElseThrow(() -> new TaskNotFoundException(id));

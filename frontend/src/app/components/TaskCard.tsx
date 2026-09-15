@@ -36,6 +36,7 @@ const GROUP_ACCENT: Record<AccentGroup, string> = {
 };
 
 function getAccentGroup(task: Task, group: TaskGroup): AccentGroup {
+  if (task.status === 'DONE' || task.status === 'CANCELLED') return 'SOMEDAY';
   if (group === 'NO_DUE_DATE' || !task.dueAt) return 'SOMEDAY';
 
   const dueDate = parseISO(task.dueAt);
@@ -45,9 +46,10 @@ function getAccentGroup(task: Task, group: TaskGroup): AccentGroup {
 
   // date-fns compares Date objects in the browser's local timezone, which is
   // also the timezone used when displaying the due date below.
-  const today = startOfDay(new Date());
+  const now = new Date();
+  const today = startOfDay(now);
   const dueDay = startOfDay(dueDate);
-  if (dueDay < today) return 'OVERDUE';
+  if (dueDate < now) return 'OVERDUE';
   if (isSameDay(dueDay, today)) return 'TODAY';
   if (isSameDay(dueDay, addDays(today, 1))) return 'TOMORROW';
   if (differenceInCalendarDays(dueDay, today) <= 7) return 'THIS_WEEK';
@@ -72,17 +74,17 @@ export function TaskCard({ task, group, onEdit, onToggle }: Props) {
 
   return (
     <div
-      onClick={onEdit}
       className={[
         'bg-white dark:bg-black border-2 border-black dark:border-[#4169E1] border-l-[6px]',
         GROUP_ACCENT[accentGroup],
-        'shadow-brutal dark:shadow-[#ffffff] p-4 flex items-start gap-4 cursor-pointer',
+        'shadow-brutal dark:shadow-[#ffffff] p-4 flex items-start gap-4',
         'hover:-translate-x-1 hover:-translate-y-1 hover:shadow-brutal-hover dark:hover:shadow-[4px_4px_0px_0px_#ffffff]',
         'transition-all duration-150',
         isDone ? 'opacity-50' : '',
       ].join(' ')}
     >
       <button
+        type="button"
         onClick={onToggle}
         className={[
           'mt-0.5 w-6 h-6 border-2 border-black dark:border-[#4169E1] flex items-center justify-center shrink-0',
@@ -94,7 +96,7 @@ export function TaskCard({ task, group, onEdit, onToggle }: Props) {
         {isDone && <Check size={16} strokeWidth={4} />}
       </button>
 
-      <div className="flex-1 min-w-0">
+      <button type="button" onClick={onEdit} className="flex-1 min-w-0 text-left" aria-label={`Edit ${task.title}`}>
         <h3
           className={[
             'text-base font-bold leading-tight mb-1',
@@ -130,7 +132,7 @@ export function TaskCard({ task, group, onEdit, onToggle }: Props) {
             </span>
           )}
         </div>
-      </div>
+      </button>
 
       <div
         className={[

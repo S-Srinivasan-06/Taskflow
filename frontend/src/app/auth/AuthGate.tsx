@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { authApi, setApiUser, apiUser, User, ApiError } from '../api/http';
-import { clearLocalCache } from '../cache/localCache';
-import App from '../App';
+import { authApi, setApiUser, apiUser, User, ApiError, API_ROOT, invalidateTaskCache } from '../api/http';
+import { clearLocalCache, maintainLocalCache } from '../cache/localCache';
+import { lazy, Suspense } from 'react';
+const App = lazy(() => import('../App'));
 
 export default function AuthGate() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
+  const [unavailable, setUnavailable] = useState(false);
+  const [restoreAttempt, setRestoreAttempt] = useState(0);
   const authChannel = useRef<BroadcastChannel | null>(null);
   const [client] = useState(() => new QueryClient({ defaultOptions: { queries: {
     retry: (count, error) => !(error instanceof ApiError && error.status < 500) && count < 1,
@@ -18,31 +21,67 @@ export default function AuthGate() {
     setApiUser(null);
     client.clear();
     setUser(null);
-    if (previous) void clearLocalCache(previous.id);
+    if (previous) void clearLocalCache(previous.id).catch(() => setNotice('Could not remove saved browser data. Clear site storage in browser settings.'));
   }
   useEffect(() => {
     let alive = true;
+    const controller = new AbortController();
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    setLoading(true); setUnavailable(false);
     const restore = async () => {
-      try { const next = await authApi.me(); if (alive) { setApiUser(next); setUser(next); } }
-      catch (error) { if (alive && !(error instanceof ApiError && error.status === 401)) setNotice('Cannot reach Taskflow. Check the connection and try again.'); }
-      finally { if (alive) setLoading(false); }
+      for (let attempt = 0; attempt < 5 && alive; attempt++) {
+        try {
+          const next = await authApi.me(controller.signal);
+          if (alive) { setApiUser(next); setUser(next); setNotice(''); setLoading(false); }
+          return;
+        } catch (error) {
+          if (!alive) return;
+          if (error instanceof ApiError && error.status === 401) { setLoading(false); return; }
+          if (attempt === 4 || (error instanceof ApiError && error.status < 500)) break;
+          setNotice('Starting Taskflow. This can take about a minute...');
+          await new Promise<void>(resolve => {
+            retryTimer = setTimeout(resolve, Math.min(1000 * 2 ** attempt, 8000));
+            controller.signal.addEventListener('abort', () => { clearTimeout(retryTimer); resolve(); }, { once: true });
+          });
+        }
+      }
+      if (alive) { setLoading(false); setUnavailable(true); setNotice('Cannot reach Taskflow. Check your connection and retry.'); }
     };
     void restore();
     const expired = () => { reset(); setNotice('Please sign in again.'); };
-    const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('taskflow-auth') : null;
+    const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(`taskflow:${API_ROOT}`) : null;
     authChannel.current = channel;
     if (channel) channel.onmessage = event => {
-      if (event.data === 'logout') expired();
-      if (event.data === 'login') {
-        reset();
+      const message = event.data;
+      if (!message || typeof message !== 'object') return;
+      if (message.action === 'logout') expired();
+      if (message.action === 'tasks' && message.userId === apiUser()?.id) {
+        void invalidateTaskCache(message.userId).then(() => client.invalidateQueries());
+      }
+      if (message.action === 'login') {
+        if (message.userId !== apiUser()?.id) reset();
         void authApi.me()
-          .then(next => { setApiUser(next); setUser(next); setNotice(''); })
-          .catch(() => expired());
+          .then(next => {
+            if (!alive) return;
+            if (apiUser()?.id !== next.id) { setApiUser(next); setUser(next); }
+            setNotice(''); void client.invalidateQueries();
+          })
+          .catch(error => { if (alive && error instanceof ApiError && error.status === 401) expired(); });
       }
     };
+    const mutation = (event: Event) => channel?.postMessage({ action: 'tasks', userId: (event as CustomEvent<string>).detail });
+    const maintain = () => { void maintainLocalCache().catch(() => undefined); };
+    maintain();
+    const maintenance = setInterval(maintain, 300_000);
+    window.addEventListener('taskflow:tasks-mutated', mutation);
     window.addEventListener('taskflow:session-expired', expired);
-    return () => { alive = false; authChannel.current = null; channel?.close(); window.removeEventListener('taskflow:session-expired', expired); };
-  }, []);
+    return () => {
+      alive = false; controller.abort(); clearTimeout(retryTimer); clearInterval(maintenance);
+      authChannel.current = null; channel?.close();
+      window.removeEventListener('taskflow:tasks-mutated', mutation);
+      window.removeEventListener('taskflow:session-expired', expired);
+    };
+  }, [restoreAttempt]);
   useEffect(() => {
     if (!user) return;
     const interval = window.setInterval(() => {
@@ -55,7 +94,7 @@ export default function AuthGate() {
     }, 60_000);
     return () => clearInterval(interval);
   }, [user]);
-  const notifyTabs = (action: 'login' | 'logout') => authChannel.current?.postMessage(action);
+  const notifyTabs = (action: 'login' | 'logout') => authChannel.current?.postMessage({ action, userId: apiUser()?.id });
   async function logout() {
     try { await authApi.logout(); reset(); notifyTabs('logout'); setNotice('Signed out.'); }
     catch {
@@ -63,12 +102,17 @@ export default function AuthGate() {
       setNotice('Signed out locally, but the server session could not be ended. Reconnect and sign out again.');
     }
   }
-  if (loading) return <div className="min-h-screen grid place-items-center">Checking your session…</div>;
+  if (loading || unavailable) return <main className="min-h-screen grid place-content-center gap-4 p-6 text-center">
+    <p role="status">{notice || 'Checking your session...'}</p>
+    {unavailable && <button className="border-2 p-3 font-bold" onClick={() => setRestoreAttempt(n => n + 1)}>Retry connection</button>}
+  </main>;
   if (!user) return <LoginForm notice={notice} onSuccess={next => {
     reset(); setApiUser(next); setUser(next); setNotice(''); notifyTabs('login');
   }} />;
   return <QueryClientProvider client={client}>
+    <Suspense fallback={<p role="status" className="p-6">Loading your tasks...</p>}>
     <App key={user.id} user={user} onLogout={logout} notice={notice} />
+    </Suspense>
   </QueryClientProvider>;
 }
 

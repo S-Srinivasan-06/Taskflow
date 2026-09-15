@@ -14,6 +14,8 @@ import java.util.*;
 public class SecurityConfig {
     @Bean PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(12); }
     @Bean SecurityFilterChain security(HttpSecurity http, AuthService auth,
+            @Value("${app.proxy-secret:}") String proxySecret,
+            @Value("${app.proxy-required:false}") boolean proxyRequired,
             @Value("${app.cookie-secure:false}") boolean secure,
             @Value("${app.cors-origins:http://localhost:5173}") String origins) throws Exception {
         CookieCsrfTokenRepository csrf = new CookieCsrfTokenRepository();
@@ -32,7 +34,7 @@ public class SecurityConfig {
             .requestCache(c -> c.disable())
             .formLogin(c -> c.disable()).httpBasic(c -> c.disable()).logout(c -> c.disable())
             .authorizeHttpRequests(c -> c
-                .requestMatchers("/api/v1/auth/csrf", "/api/v1/auth/login", "/api/v1/auth/register", "/error").permitAll()
+                .requestMatchers("/api/v1/auth/csrf", "/api/v1/auth/login", "/api/v1/auth/register", "/actuator/health/readiness", "/actuator/health/liveness", "/error").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(c -> c
                 .authenticationEntryPoint((req, res, e) -> {
@@ -43,7 +45,8 @@ public class SecurityConfig {
                     res.setStatus(403); res.setContentType("application/json");
                     res.getWriter().write("{\"message\":\"Request verification failed; refresh and try again\"}");
                 }))
-            .addFilterBefore(new SessionFilter(auth), AnonymousAuthenticationFilter.class);
+            .addFilterBefore(new SessionFilter(auth), AnonymousAuthenticationFilter.class)
+            .addFilterBefore(new TrustedProxyFilter(proxySecret, proxyRequired), org.springframework.security.web.csrf.CsrfFilter.class);
         return http.build();
     }
 }

@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, HardDrive, LogOut, Plus } from 'lucide-react';
+import { ChevronDown, HardDrive, LogOut, Menu, Plus, X } from 'lucide-react';
 import { ClockWidget } from './ClockWidget';
 import { DarkModeToggle } from './DarkModeToggle';
 import logo from '../../assets/logo.svg';
 
 interface Props {
+  sidebarOpen: boolean;
+  onToggleSidebar: () => void;
   onNewTask: () => void;
   timezone: string;
   setTimezone: (tz: string) => void;
@@ -15,6 +17,7 @@ interface Props {
 }
 
 export function Topbar({
+  sidebarOpen, onToggleSidebar,
   onNewTask, timezone, setTimezone, username,
   localCache, onLocalCacheChange, onLogout,
 }: Props) {
@@ -38,9 +41,13 @@ export function Topbar({
   }, [accountOpen]);
 
   return (
-    <header className="h-14 border-b-2 border-black dark:border-zinc-700 bg-zinc-950 dark:bg-zinc-900 text-white flex items-center justify-between px-6 shrink-0 relative z-30">
+    <header className="h-14 border-b-2 border-black dark:border-zinc-700 bg-zinc-950 dark:bg-zinc-900 text-white flex items-center justify-between px-2 sm:px-6 shrink-0 relative z-30">
       <div className="flex min-w-0 items-center gap-3">
-        <img src={logo} alt="Taskflow" className="h-9 w-auto shrink-0 object-contain" />
+        <button type="button" onClick={onToggleSidebar} aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'}
+          aria-controls="taskflow-sidebar" aria-expanded={sidebarOpen} className="md:hidden shrink-0 p-1 text-white">
+          {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
+        </button>
+        <img src={logo} alt="Taskflow" className="h-8 sm:h-9 w-auto shrink-0 object-contain" />
         <div ref={accountRef} className="relative">
           <button
             type="button"
@@ -99,13 +106,13 @@ export function Topbar({
         <ClockWidget timezone={timezone} setTimezone={setTimezone} />
       </div>
 
-      <div className="flex shrink-0 items-center gap-4">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-4">
         <DarkModeToggle />
         <button
           onClick={onNewTask}
           className="flex items-center gap-2 bg-orange-500 text-black border-2 border-transparent px-4 py-1.5 font-mono text-xs font-bold shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] dark:shadow-[#ffffff] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_0px_0px_#ffffff] transition-all"
         >
-          <Plus size={16} strokeWidth={3} /> NEW TASK
+          <Plus size={16} strokeWidth={3} /> <span className="hidden sm:inline">NEW TASK</span>
         </button>
       </div>
     </header>

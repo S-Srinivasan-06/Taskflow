@@ -42,6 +42,7 @@ export function ClockWidget({ timezone, setTimezone }: Props) {
       </div>
 
       <button
+        aria-label="Choose clock timezone"
         onClick={() => setIsOpen(!isOpen)}
         className="ml-2 border-2 border-black p-0.5 hover:bg-black hover:text-white transition-colors"
       >
@@ -52,7 +53,7 @@ export function ClockWidget({ timezone, setTimezone }: Props) {
         <>
           <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
           <div className="absolute top-full left-0 mt-2 w-56 border-2 border-black bg-white text-black shadow-[2px_2px_0px_0px_#000] z-50 max-h-80 overflow-y-auto">
-            {TIMEZONES.map(tz => (
+            {[...new Map(TIMEZONES.map(tz => [tz.value, tz])).values()].map(tz => (
               <button
                 key={tz.value}
                 onClick={() => { setTimezone(tz.value); setIsOpen(false); }}

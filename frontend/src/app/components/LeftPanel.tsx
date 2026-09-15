@@ -6,7 +6,7 @@ import {
 } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { taskApi } from '../api/taskApi';
-import { Task, CustomCategory } from './types';
+import { CustomCategory } from './types';
 
 interface Props {
   calendarMonth: Date;
@@ -48,14 +48,14 @@ export function LeftPanel({
     return arr;
   }, [calendarMonth]);
 
-  const { data: monthTasks } = useQuery({
+  const { data: monthTasks, isError: calendarError, refetch: refetchCalendar } = useQuery({
     queryKey: ['calendar', calendarMonth.getFullYear(), calendarMonth.getMonth() + 1],
     queryFn: () => taskApi.getByMonth(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1)
   });
   
   const activeTasks = monthTasks || [];
 
-  const { data: stats } = useQuery({
+  const { data: stats, isError: statsError, refetch: refetchStats } = useQuery({
     queryKey: ['stats'],
     queryFn: taskApi.getStats,
     refetchInterval: 10000, // keep stats somewhat fresh
@@ -80,7 +80,7 @@ export function LeftPanel({
 
   return (
     <aside
-      className="w-80 border-r-2 border-black dark:border-[#4169E1] bg-stone-50 dark:bg-black flex flex-col shrink-0 overflow-y-auto"
+      className="w-full md:w-80 border-r-2 border-black dark:border-zinc-700 bg-stone-50 dark:bg-zinc-950 flex flex-col shrink-0 overflow-y-auto"
       style={{ fontFamily: "'JetBrains Mono', monospace" }}
     >
       {/* Month Navigator */}
@@ -160,7 +160,7 @@ export function LeftPanel({
             const isCurrentMonth = isSameMonth(day, calendarMonth);
             const isSelected = selectedDate && isSameDay(day, selectedDate);
             const isTodayDate = isSameDay(day, new Date());
-            const hasTasks = activeTasks.some(t => t.dueAt && isSameDay(new Date(t.dueAt), day) && t.status !== 'DONE' && t.status !== 'CANCELLED');
+            const hasTasks = activeTasks.some(entry => entry.remaining > 0 && entry.date === format(day, 'yyyy-MM-dd'));
 
             const isHighlighted = isSelected || isTodayDate;
 
@@ -196,13 +196,14 @@ export function LeftPanel({
 
       {/* Stats Progress */}
       <div className="p-4 border-b-2 border-black dark:border-[#4169E1] space-y-3">
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-500 mb-2">PROGRESS</h3>
+        <div className="flex justify-between"><h3 className="text-[10px] font-bold uppercase tracking-widest text-stone-500 mb-2">PROGRESS</h3>
+          {statsError && <button type="button" onClick={() => void refetchStats()} className="text-[10px] text-red-600 underline">RETRY</button>}</div>
         {[
-          { key: 'REMAINING', total: stats?.totalActive || 0 },
-          { key: 'OVERDUE', total: stats?.overdue || 0 },
-          { key: 'TODAY', total: (stats?.dueToday || 0) - (stats?.completedToday || 0) },
-          { key: 'TOMORROW', total: stats?.dueTomorrow || 0 },
-          { key: 'THIS WEEK', total: stats?.dueThisWeek || 0 },
+          { key: 'REMAINING', total: statsError ? '—' : stats?.totalActive ?? 0 },
+          { key: 'OVERDUE', total: statsError ? '—' : stats?.overdue ?? 0 },
+          { key: 'TODAY', total: statsError ? '—' : stats?.dueToday ?? 0 },
+          { key: 'TOMORROW', total: statsError ? '—' : stats?.dueTomorrow ?? 0 },
+          { key: 'THIS WEEK', total: statsError ? '—' : stats?.dueThisWeek ?? 0 },
         ].map((val) => (
             <button
               key={val.key}
@@ -214,6 +215,7 @@ export function LeftPanel({
             </button>
         ))}
       </div>
+      {calendarError && <div role="alert" className="p-3 text-xs bg-red-100 dark:bg-red-950">Calendar unavailable. <button onClick={() => void refetchCalendar()} className="underline font-bold">Retry</button></div>}
 
       {/* Categories */}
       <div className="p-4 flex-1">
@@ -239,8 +241,9 @@ export function LeftPanel({
             >
               <div className={`w-2 h-2 ${cat.color} border border-black shrink-0`} />
               {cat.name}
-              <span
+              <span role="button" tabIndex={0} aria-label={`Remove ${cat.name} category`}
                 onClick={e => { e.stopPropagation(); handleRemoveCategory(cat.name); }}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); handleRemoveCategory(cat.name); } }}
                 className="ml-1 text-[8px] opacity-0 group-hover/cat:opacity-100 transition-opacity hover:text-red-500"
               >
                 ✕

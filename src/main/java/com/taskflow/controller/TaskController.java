@@ -41,10 +41,11 @@ public class TaskController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime endDate,
+            @RequestParam(defaultValue = "false") boolean includeUndated,
             @PageableDefault(size = 10) Pageable pageable,
             @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone) {
         return ResponseEntity.ok(PageResponseDTO.from(taskService.searchTasks(
-                search, category, quickFilter, date, startDate, endDate, pageable, ZoneId.of(timezone))));
+                search, category, quickFilter, date, startDate, endDate, pageable, ZoneId.of(timezone), includeUndated)));
     }
 
     @GetMapping("/stats")
@@ -66,7 +67,7 @@ public class TaskController {
     }
 
     @GetMapping("/calendar")
-    public ResponseEntity<List<TaskResponseDTO>> getByMonth(
+    public ResponseEntity<List<com.taskflow.dto.CalendarDayDTO>> getByMonth(
             @RequestParam int year, @RequestParam int month,
             @RequestHeader(value = "X-Timezone", defaultValue = "UTC") String timezone) {
         return ResponseEntity.ok(taskService.getTasksByMonth(year, month, ZoneId.of(timezone)));

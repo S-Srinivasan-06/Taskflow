@@ -2,6 +2,8 @@ import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getCached,
+  cacheRevision,
+  clearLocalCache,
   isLocalCacheEnabled,
   loadLocalPreferences,
   putCached,
@@ -80,6 +82,14 @@ describe('per-user local cache', () => {
     const pendingWrite = putCached('alice', '/tasks', ['private']);
     const disabling = setLocalCacheEnabled('alice', false);
     await Promise.all([pendingWrite, disabling]);
+    expect(await getCached('alice', '/tasks')).toBeUndefined();
+  });
+
+  it('rejects a response captured before a cache clear', async () => {
+    await setLocalCacheEnabled('alice', true);
+    const revision = await cacheRevision('alice');
+    await clearLocalCache('alice');
+    await putCached('alice', '/tasks', ['stale'], revision);
     expect(await getCached('alice', '/tasks')).toBeUndefined();
   });
 

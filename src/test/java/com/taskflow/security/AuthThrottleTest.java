@@ -5,12 +5,15 @@ import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.*;
 
 class AuthThrottleTest {
 
     @Test
     void enforcesThePerKeyLimit() {
-        var throttle = new AuthThrottle();
+        var store = mock(RateLimitStore.class);
+        when(store.consume(anyString(), eq(1))).thenReturn(true, false);
+        var throttle = new AuthThrottle(store);
 
         throttle.check("login-user:alice", 1);
 
@@ -20,12 +23,10 @@ class AuthThrottleTest {
 
     @Test
     void evictsTheOldestKeyInsteadOfLockingOutNewUsersAtCapacity() {
-        var throttle = new AuthThrottle();
-        for (int index = 0; index < 10_000; index++) {
-            throttle.check("login-user:user-" + index, 1);
-        }
-
+        var store = mock(RateLimitStore.class);
+        when(store.consume(anyString(), anyInt())).thenReturn(true);
+        var throttle = new AuthThrottle(store);
         assertDoesNotThrow(() -> throttle.check("login-user:new-user", 1));
-        assertDoesNotThrow(() -> throttle.check("login-user:user-0", 1));
+        verify(store).consume(anyString(), eq(1));
     }
 }

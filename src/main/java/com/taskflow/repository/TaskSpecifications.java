@@ -19,6 +19,10 @@ public class TaskSpecifications {
     }
     public static Specification<Task> withDynamicFilters(String search, String category, String quickFilter,
             LocalDate date, OffsetDateTime startDate, OffsetDateTime endDate, ZoneId zone) {
+        return withDynamicFilters(search, category, quickFilter, date, startDate, endDate, zone, false);
+    }
+    public static Specification<Task> withDynamicFilters(String search, String category, String quickFilter,
+            LocalDate date, OffsetDateTime startDate, OffsetDateTime endDate, ZoneId zone, boolean includeUndated) {
         if (startDate != null && endDate != null && !startDate.isBefore(endDate))
             throw new IllegalArgumentException("Start date must be before end date");
         String filter = quickFilter == null ? "ALL" : quickFilter.trim().toUpperCase(Locale.ROOT);
@@ -38,8 +42,10 @@ public class TaskSpecifications {
                 predicates.add(between(date.atStartOfDay(zone).toOffsetDateTime(),
                     date.plusDays(1).atStartOfDay(zone).toOffsetDateTime()).toPredicate(root, query, cb));
             }
-            if (startDate != null)
-                predicates.add(cb.or(cb.greaterThanOrEqualTo(root.get("dueAt"), startDate), cb.isNull(root.get("dueAt"))));
+            if (startDate != null) {
+                var lower = cb.greaterThanOrEqualTo(root.get("dueAt"), startDate);
+                predicates.add(includeUndated ? cb.or(lower, cb.isNull(root.get("dueAt"))) : lower);
+            }
             if (endDate != null) predicates.add(cb.lessThan(root.get("dueAt"), endDate));
             var today = LocalDate.now(zone);
             if ("COMPLETED".equals(filter)) predicates.add(root.get("status").in(TaskStatus.DONE, TaskStatus.CANCELLED));
@@ -49,6 +55,7 @@ public class TaskSpecifications {
                 predicates.add(remaining().toPredicate(root, query, cb));
             }
             if (Set.of("TODAY", "TOMORROW", "THIS WEEK").contains(filter)) {
+                predicates.add(remaining().toPredicate(root, query, cb));
                 var start = "TOMORROW".equals(filter) ? today.plusDays(1) : today;
                 var end = start.plusDays("THIS WEEK".equals(filter) ? 7 : 1);
                 predicates.add(between(start.atStartOfDay(zone).toOffsetDateTime(),

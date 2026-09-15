@@ -27,6 +27,7 @@ class AuthOwnershipIntegrationTest {
             statement.execute("create role anon; create role authenticated;");
             statement.execute(Files.readString(Path.of("supabase/migrations/20260913143000_create_taskflow_schema.sql")));
             statement.execute(Files.readString(Path.of("supabase/migrations/20260913160000_add_accounts_and_ownership.sql")));
+            statement.execute(Files.readString(Path.of("supabase/migrations/20260915120000_harden_runtime.sql")));
         }
         r.add("spring.datasource.url", db::getJdbcUrl);
         r.add("spring.datasource.username", db::getUsername);

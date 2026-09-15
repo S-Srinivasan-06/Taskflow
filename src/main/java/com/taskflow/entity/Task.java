@@ -38,7 +38,7 @@ public class Task {
     private UUID id;
 
     // Supplied exclusively by the authenticated backend principal.
-    @Column(name = "user_id", updatable = false)
+    @Column(name = "user_id", nullable = false, updatable = false)
     private UUID userId;
 
     // Brief title shown in the task list; required field
@@ -52,6 +52,9 @@ public class Task {
     // Deadline stored as TIMESTAMPTZ (timezone-aware); null = open-ended task with no deadline.
     @Column(name = "due_at")
     private OffsetDateTime dueAt;
+
+    @Column(name = "completed_at")
+    private OffsetDateTime completedAt;
 
     // Task lifecycle state; STRING storage for readability, defaults to PENDING to avoid nulls in @Builder.
     @Enumerated(EnumType.STRING)

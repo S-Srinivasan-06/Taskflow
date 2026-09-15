@@ -54,9 +54,7 @@ public class AuthService {
     @Transactional(readOnly = true)
     public Optional<CurrentUser.Identity> authenticate(String token) {
         if (token == null || !token.matches("[A-Za-z0-9_-]{43}")) return Optional.empty();
-        return sessions.findById(hash(token))
-            .filter(s -> s.getExpiresAt().isAfter(OffsetDateTime.now()))
-            .flatMap(s -> users.findById(s.getUserId()))
+        return sessions.findIdentity(hash(token), OffsetDateTime.now())
             .map(u -> new CurrentUser.Identity(u.getId(), u.getUsername()));
     }
     public void revoke(String token) {

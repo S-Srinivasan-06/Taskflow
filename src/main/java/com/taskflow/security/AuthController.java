@@ -29,14 +29,14 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<CurrentUser.Identity> register(@Valid @RequestBody Signup dto,
                                                           HttpServletRequest req, HttpServletResponse res) {
-        throttle.check("register:" + req.getRemoteAddr(), 10);
+        throttle.check("register:" + TrustedProxyFilter.clientIp(req), 10);
         AppUser user = auth.register(dto.username(), dto.password(), dto.confirmPassword());
         signIn(user, req, res);
         return ResponseEntity.status(201).body(new CurrentUser.Identity(user.getId(), user.getUsername()));
     }
     @PostMapping("/login")
     public CurrentUser.Identity login(@Valid @RequestBody Login dto, HttpServletRequest req, HttpServletResponse res) {
-        throttle.check("login-ip:" + req.getRemoteAddr(), 30);
+        throttle.check("login-ip:" + TrustedProxyFilter.clientIp(req), 30);
         throttle.check("login-user:" + dto.username().toLowerCase(Locale.ROOT), 15);
         AppUser user = auth.login(dto.username(), dto.password());
         signIn(user, req, res);
