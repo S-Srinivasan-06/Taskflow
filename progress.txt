@@ -1,3 +1,59 @@
+# TASKFLOW — AUTHORITATIVE PROJECT RECAP AND HANDOFF
+Updated: 2026-09-16. Read this section first; the detailed audit below is historical.
+
+## Live outcome
+Production path: Browser -> Vercel React/Vite + same-origin `/api/v1` proxy -> Render Spring Boot Docker -> Supabase PostgreSQL private `app` schema.
+
+- Frontend: https://taskflow-olive-psi.vercel.app/
+- Backend: https://taskflow-api-d6bm.onrender.com
+- Readiness: https://taskflow-api-d6bm.onrender.com/actuator/health/readiness
+- GitHub: https://github.com/S-Srinivasan-06/Taskflow
+- Supabase ref: `bxqdpikshuczcutymwrm`
+- Repo `C:/Coding/Taskflow`, `main`; pre-handoff HEAD/origin `f952abb`, clean.
+- Verified: frontend/readiness HTTP 200; live register, logout, fresh login, five task creates/listing, final logout; schema v3.
+- Time-sensitive DB snapshot: 4 users, 6 tasks, 3 valid sessions, 2 rate-limit rows.
+- Tests: backend 14/14 with PostgreSQL Testcontainers; frontend 11/11; typecheck/build pass.
+
+## P0 next actions
+1. A database password was pasted in the earlier chat. Treat it as exposed: rotate it, update `SUPABASE_DB_PASSWORD` only in Render, redeploy, verify readiness/login. Never record the replacement in chat/Git/logs/docs.
+2. `taskflow_demo` credentials were shared. Rotate/delete that demo before public use; password intentionally omitted here.
+3. Check GitHub Actions for `f952abb` and this handoff commit.
+4. Run two-user browser E2E: register/relogin, CRUD/complete/reload/delete, ownership isolation, cache enable/fallback/disable, Secure+HttpOnly+SameSite cookies.
+5. Verify production connects as least-privilege `taskflow_app`.
+
+## Architecture and invariants
+The Vercel proxy is mandatory: host-only Secure/HttpOnly SameSite=Lax session/CSRF cookies must remain same-origin. Never point browser API calls directly at Render. Nginx is local-Docker-only. Backend: Java 21, Spring Boot 3.5.14, Security/JPA/PostgreSQL. Frontend: React 18, TypeScript, Vite 6, TanStack Query.
+
+Auth is custom app auth, not Supabase Auth. Accounts are in `app.app_users`; browsers never connect to Supabase. User IDs `[A-Za-z0-9_.-]{3,32}`, lowercase-normalized; passwords 12–72 UTF-8 bytes, BCrypt 12. Random 32-byte sessions store SHA-256 hashes, expire after 12h, revoke on logout. CSRF stays enabled. DB throttling survives restarts. Render requires proxy secret/client IP. Tasks are owner-scoped; foreign tasks return not found; mutations use optimistic versions. No password recovery exists.
+
+Frontend retries cold starts, offers retry, deduplicates CSRF, retries auth once after stale verification, uses 15s timeout, aborts on account change, syncs tabs. Key files: `src/main/java/com/taskflow/security/`, `AuthGate.tsx`, `http.ts`.
+
+## API, database, cache
+Auth API: csrf/register/login/me/logout. Tasks: list/search/stats/up-next/calendar/by-ID/create/update/status/delete. Tasks have UUID owner, title/description, optional due/category, four priorities/statuses, completion/audit timestamps, soft delete/version. Timezone filters, undated search, stable pagination, allowed sorts, 2,000/user quota; page size max 10.
+
+Migrations: `20260913143000_create_taskflow_schema.sql`, `20260913160000_add_accounts_and_ownership.sql`, `20260915120000_harden_runtime.sql`. Private `app`: `app_users`, `tasks`, `login_sessions`, `auth_rate_limits`, `schema_version`. Production Hibernate is validate; migrations own schema. RLS enabled, browser roles denied. Use Session/direct pooler 5432, not transaction 6543. Create test data through API.
+
+Optional “Save on this device”: IndexedDB `taskflow-local-cache-v1` for successful task GETs; localStorage consent/preferences. Scoped origin+API+user. Never passwords/cookies/tokens/CSRF/offline mutations. Network-first stale fallback, 24h TTL, 80 records/~4 MiB/user, pruning, serialized writes, cross-tab invalidation, revision fencing. Disable clears it. No Render/Supabase storage and no offline writes.
+
+## Providers
+Vercel root `frontend`, Vite build to `dist`; needs `RENDER_BACKEND_URL` and matching 32+ char `TASKFLOW_PROXY_SECRET`. Files: `frontend/vercel.json`, `frontend/api/[...path].mjs`. Proxy preserves cookie/CSRF/Set-Cookie, no-store, strips encoding/length. Fixes: nested routes `4b12434`, decoding `39bf921`, stale-auth retry `f952abb`.
+
+Render: service `srv-dal70itbedkc73bga0sg`, workspace `tea-dal5ud67bikc73egfbi0`, last live deploy `dep-dal8b2lg1s2s73ej1jjg`, free/Singapore. Variables: profiles, DB URL/user/password, proxy secret, max tasks, CORS. `APP_CORS_ORIGINS` is manual dashboard state, not `render.yaml`; preserve production/owner Vercel aliases. Missing it caused CORS 403. Free Render may cold-start.
+
+## Validation/data/remaining
+Commands: `.\mvnw.cmd -B -ntp test`; frontend `npm test`, `npm run build`, `npm audit --omit=dev`; full local `docker compose --env-file .env.example up --build`. CI runs backend, frontend audit/test/build, Compose validation and image builds.
+
+Demo `taskflow_demo` was created through Vercel and logged out. Tasks: Plan the week; Review project notes; Buy groceries; Finish Taskflow deployment checklist; Read for 30 minutes. Production has other data—never assume disposable.
+
+After P0: verify CDN no-store, cache flow, CORS persistence, least-privilege DB user, two-user E2E. Later: Playwright, component/a11y tests, ESLint, monitoring/Hikari metrics, CSP, immutable digests, reduced motion, timezone/calendar cleanup, bundle trimming, indexing metadata, password-reset design.
+
+Troubleshooting: auth 404=Vercel route; decoding failed=encoding headers; CORS 403=origin list; other 403=CSRF/proxy/direct backend; 502=Render waking; 503=proxy config; 401 after login=Set-Cookie. Backend not ready: JDBC, port 5432, credentials, schema v3, profiles, logs.
+
+Next model: read this and `docs/deployment.md`, `docs/supabase.md`, Render/Vercel configs, runtime profiles, `http.ts`, `AuthGate.tsx`, `localCache.ts`. Preserve same-origin proxy, ownership, CSRF, cache scoping. Before commit: tests, diff/status, `git diff --check`, secret scan. `Agents.md` stays ignored.
+
+---
+
+# HISTORICAL HANDOFF/AUDIT (traceability only)
 TASKFLOW - MODEL HANDOFF AND PROGRESS
 Updated: 2026-09-15
 
