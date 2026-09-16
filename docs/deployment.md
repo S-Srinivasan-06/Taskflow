@@ -17,6 +17,10 @@ SUPABASE_DB_USERNAME, SUPABASE_DB_PASSWORD, and TASKFLOW_PROXY_SECRET. The
 secret must contain at least 32 random characters. Copy the resulting Render
 URL. Readiness is exposed at /actuator/health/readiness.
 
+The Blueprint explicitly uses Render's free plan in Singapore, the nearest
+available Render region to this project's Supabase Tokyo region. Free services
+spin down when idle, so the first request after inactivity can take longer.
+
 ## Vercel frontend
 
 Import the same GitHub repository and set Root Directory to 'frontend'. Set
