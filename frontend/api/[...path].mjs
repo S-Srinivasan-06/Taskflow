@@ -1,4 +1,4 @@
-const HOP = new Set(['connection', 'content-length', 'host', 'transfer-encoding', 'x-taskflow-proxy-secret', 'x-taskflow-client-ip']);
+const HOP = new Set(['connection', 'content-encoding', 'content-length', 'host', 'transfer-encoding', 'x-taskflow-proxy-secret', 'x-taskflow-client-ip']);
 export default async function handler(request, response) {
   const backend = process.env.RENDER_BACKEND_URL;
   const secret = process.env.TASKFLOW_PROXY_SECRET;
