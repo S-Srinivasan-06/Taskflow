@@ -57,4 +57,35 @@ describe('HTTP request coordination', () => {
     const taskCall = fetchMock.mock.calls.find(([input]) => String(input).endsWith('/tasks'));
     expect((taskCall?.[1]?.headers as Headers).get('X-XSRF-TOKEN')).toBe('csrf-2');
   });
+
+  it('retries authentication once with a fresh CSRF token after a verification failure', async () => {
+    let csrfCalls = 0;
+    let registerCalls = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/auth/csrf')) {
+        csrfCalls++;
+        return new Response(JSON.stringify({ token: `csrf-${csrfCalls}` }), {
+          status: 200, headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (url.endsWith('/auth/register')) {
+        registerCalls++;
+        if (registerCalls === 1) return new Response(JSON.stringify({ message: 'Request verification failed; refresh and try again' }), {
+          status: 403, headers: { 'Content-Type': 'application/json' },
+        });
+        expect((init?.headers as Headers).get('X-XSRF-TOKEN')).toBe('csrf-2');
+        return new Response(JSON.stringify({ id: 'user-id', username: 'alice' }), {
+          status: 201, headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await authApi.register('alice', 'long-enough-password', 'long-enough-password');
+
+    expect(csrfCalls).toBe(2);
+    expect(registerCalls).toBe(2);
+  });
 });

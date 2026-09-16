@@ -140,7 +140,14 @@ export const authApi = {
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
 };
 async function authenticate(path: string, body: object) {
-  const result = await request<User>(path, { method: 'POST', body: JSON.stringify(body) });
+  const submit = () => request<User>(path, { method: 'POST', body: JSON.stringify(body) });
+  let result: User;
+  try { result = await submit(); }
+  catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 403) throw error;
+    csrfToken = null;
+    result = await submit();
+  }
   // Authentication may rotate the server-side CSRF context. Never carry a
   // pre-authentication token into the first task mutation.
   csrfToken = null;
