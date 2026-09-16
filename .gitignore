@@ -31,3 +31,7 @@ frontend-codebase.md
 
 scratch/
 *.png
+
+# Vercel local metadata
+.vercel/
+.env.local
