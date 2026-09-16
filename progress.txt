@@ -1,683 +1,467 @@
-# TASKFLOW — AUTHORITATIVE PROJECT RECAP AND HANDOFF
-Updated: 2026-09-16. Read this section first; the detailed audit below is historical.
+# Taskflow — Project Recap and Handoff
 
-## Live outcome
-Production path: Browser -> Vercel React/Vite + same-origin `/api/v1` proxy -> Render Spring Boot Docker -> Supabase PostgreSQL private `app` schema.
+Updated: 2026-09-16 (Asia/Calcutta)
+
+This is the single durable handoff for the next engineer or model. It replaces all previous problem reports and historical audit text. Read it completely before changing code, infrastructure, authentication, database schema, or deployment settings.
+
+## 1. Current status
+
+Taskflow is deployed and functional as a full-stack, per-user task manager.
+
+```text
+Browser
+  -> Vercel React/Vite frontend
+  -> same-origin /api/v1 Vercel serverless proxy
+  -> Render Spring Boot Docker backend
+  -> Supabase PostgreSQL private app schema
+
+Optional device storage
+  -> localStorage: cache consent and validated preferences
+  -> IndexedDB: bounded per-user task GET cache
+```
+
+Production endpoints:
 
 - Frontend: https://taskflow-olive-psi.vercel.app/
 - Backend: https://taskflow-api-d6bm.onrender.com
 - Readiness: https://taskflow-api-d6bm.onrender.com/actuator/health/readiness
 - GitHub: https://github.com/S-Srinivasan-06/Taskflow
-- Supabase ref: `bxqdpikshuczcutymwrm`
-- Repo `C:/Coding/Taskflow`, `main`; pre-handoff HEAD/origin `f952abb`, clean.
-- Verified: frontend/readiness HTTP 200; live register, logout, fresh login, five task creates/listing, final logout; schema v3.
-- Time-sensitive DB snapshot: 4 users, 6 tasks, 3 valid sessions, 2 rate-limit rows.
-- Tests: backend 14/14 with PostgreSQL Testcontainers; frontend 11/11; typecheck/build pass.
-
-## P0 next actions
-1. A database password was pasted in the earlier chat. Treat it as exposed: rotate it, update `SUPABASE_DB_PASSWORD` only in Render, redeploy, verify readiness/login. Never record the replacement in chat/Git/logs/docs.
-2. `taskflow_demo` credentials were shared. Rotate/delete that demo before public use; password intentionally omitted here.
-3. Check GitHub Actions for `f952abb` and this handoff commit.
-4. Run two-user browser E2E: register/relogin, CRUD/complete/reload/delete, ownership isolation, cache enable/fallback/disable, Secure+HttpOnly+SameSite cookies.
-5. Verify production connects as least-privilege `taskflow_app`.
-
-## Architecture and invariants
-The Vercel proxy is mandatory: host-only Secure/HttpOnly SameSite=Lax session/CSRF cookies must remain same-origin. Never point browser API calls directly at Render. Nginx is local-Docker-only. Backend: Java 21, Spring Boot 3.5.14, Security/JPA/PostgreSQL. Frontend: React 18, TypeScript, Vite 6, TanStack Query.
-
-Auth is custom app auth, not Supabase Auth. Accounts are in `app.app_users`; browsers never connect to Supabase. User IDs `[A-Za-z0-9_.-]{3,32}`, lowercase-normalized; passwords 12–72 UTF-8 bytes, BCrypt 12. Random 32-byte sessions store SHA-256 hashes, expire after 12h, revoke on logout. CSRF stays enabled. DB throttling survives restarts. Render requires proxy secret/client IP. Tasks are owner-scoped; foreign tasks return not found; mutations use optimistic versions. No password recovery exists.
-
-Frontend retries cold starts, offers retry, deduplicates CSRF, retries auth once after stale verification, uses 15s timeout, aborts on account change, syncs tabs. Key files: `src/main/java/com/taskflow/security/`, `AuthGate.tsx`, `http.ts`.
-
-## API, database, cache
-Auth API: csrf/register/login/me/logout. Tasks: list/search/stats/up-next/calendar/by-ID/create/update/status/delete. Tasks have UUID owner, title/description, optional due/category, four priorities/statuses, completion/audit timestamps, soft delete/version. Timezone filters, undated search, stable pagination, allowed sorts, 2,000/user quota; page size max 10.
-
-Migrations: `20260913143000_create_taskflow_schema.sql`, `20260913160000_add_accounts_and_ownership.sql`, `20260915120000_harden_runtime.sql`. Private `app`: `app_users`, `tasks`, `login_sessions`, `auth_rate_limits`, `schema_version`. Production Hibernate is validate; migrations own schema. RLS enabled, browser roles denied. Use Session/direct pooler 5432, not transaction 6543. Create test data through API.
-
-Optional “Save on this device”: IndexedDB `taskflow-local-cache-v1` for successful task GETs; localStorage consent/preferences. Scoped origin+API+user. Never passwords/cookies/tokens/CSRF/offline mutations. Network-first stale fallback, 24h TTL, 80 records/~4 MiB/user, pruning, serialized writes, cross-tab invalidation, revision fencing. Disable clears it. No Render/Supabase storage and no offline writes.
-
-## Providers
-Vercel root `frontend`, Vite build to `dist`; needs `RENDER_BACKEND_URL` and matching 32+ char `TASKFLOW_PROXY_SECRET`. Files: `frontend/vercel.json`, `frontend/api/[...path].mjs`. Proxy preserves cookie/CSRF/Set-Cookie, no-store, strips encoding/length. Fixes: nested routes `4b12434`, decoding `39bf921`, stale-auth retry `f952abb`.
-
-Render: service `srv-dal70itbedkc73bga0sg`, workspace `tea-dal5ud67bikc73egfbi0`, last live deploy `dep-dal8b2lg1s2s73ej1jjg`, free/Singapore. Variables: profiles, DB URL/user/password, proxy secret, max tasks, CORS. `APP_CORS_ORIGINS` is manual dashboard state, not `render.yaml`; preserve production/owner Vercel aliases. Missing it caused CORS 403. Free Render may cold-start.
-
-## Validation/data/remaining
-Commands: `.\mvnw.cmd -B -ntp test`; frontend `npm test`, `npm run build`, `npm audit --omit=dev`; full local `docker compose --env-file .env.example up --build`. CI runs backend, frontend audit/test/build, Compose validation and image builds.
-
-Demo `taskflow_demo` was created through Vercel and logged out. Tasks: Plan the week; Review project notes; Buy groceries; Finish Taskflow deployment checklist; Read for 30 minutes. Production has other data—never assume disposable.
-
-After P0: verify CDN no-store, cache flow, CORS persistence, least-privilege DB user, two-user E2E. Later: Playwright, component/a11y tests, ESLint, monitoring/Hikari metrics, CSP, immutable digests, reduced motion, timezone/calendar cleanup, bundle trimming, indexing metadata, password-reset design.
-
-Troubleshooting: auth 404=Vercel route; decoding failed=encoding headers; CORS 403=origin list; other 403=CSRF/proxy/direct backend; 502=Render waking; 503=proxy config; 401 after login=Set-Cookie. Backend not ready: JDBC, port 5432, credentials, schema v3, profiles, logs.
-
-Next model: read this and `docs/deployment.md`, `docs/supabase.md`, Render/Vercel configs, runtime profiles, `http.ts`, `AuthGate.tsx`, `localCache.ts`. Preserve same-origin proxy, ownership, CSRF, cache scoping. Before commit: tests, diff/status, `git diff --check`, secret scan. `Agents.md` stays ignored.
-
----
-
-# HISTORICAL HANDOFF/AUDIT (traceability only)
-TASKFLOW - MODEL HANDOFF AND PROGRESS
-Updated: 2026-09-15
-
-PURPOSE
-
-This file is the durable handoff for the next model/agent. It supersedes the old
-filename problems.txt. The detailed audit below is retained for traceability, but
-its original pre-fix evidence is historical; use the current status in this
-section as the source of truth.
-
-CURRENT REPOSITORY STATE
-
-- Repository: C:/Coding/Taskflow
-- Remote: https://github.com/S-Srinivasan-06/Taskflow
-- Branch: main
-- HEAD and origin/main: c75bd9c - fix: resolve audit findings and prepare free deployment
-- Working tree was clean after the push.
-- Agents.md is intentionally ignored by .gitignore and must not be committed.
-- No passwords, Supabase tokens, proxy secrets, or .env files were committed.
-
-ARCHITECTURE NOW IMPLEMENTED
-
-- Frontend: Vite/React under frontend/, intended for Vercel.
-- Browser requests stay same-origin at /api/v1.
-- frontend/api/[...path].mjs proxies /api/* to Render and forwards cookies,
-  CSRF headers, and a verified client address.
-- Backend: Spring Boot Docker service, intended for Render.
-- Database: Supabase PostgreSQL with private app schema and the additive migration
-  supabase/migrations/20260915120000_harden_runtime.sql.
-- Local development: Docker Compose PostgreSQL + migration job + backend + Nginx
-  frontend; local URL is http://localhost:5173.
-- Browser local cache: opt-in, per-origin/API/user IndexedDB; it contains cached
-  task responses/preferences only, never passwords, cookies, or offline mutations.
-
-RESOLVED IN THIS FIX PASS
-
-- Vercel-to-Render same-origin proxy and deployment manifests were added.
-- Dynamic PaaS port handling, readiness/liveness probes, schema-version gating,
-  request IDs, private no-store responses, and structured request logging were added.
-- Trusted proxy validation prevents direct backend access without the shared secret;
-  login/register throttling uses a shared PostgreSQL rate-limit store.
-- Session identity lookup was consolidated; BCrypt, HttpOnly session cookies, CSRF,
-  ownership checks, optimistic locking, and cross-user isolation remain enforced.
-- Task quotas, non-null ownership enforcement when legacy data permits, completion
-  timestamps, correct completed-today/statistics/filter semantics, explicit undated
-  search behavior, and compact calendar results were added.
-- IndexedDB cache revision fencing prevents stale GET repopulation after mutations;
-  expired-record sweeps, preference validation, deletion-error reporting, request
-  timeouts, cache invalidation, cross-tab mutation events, and stale-data UI were added.
-- Mobile layout/drawer behavior, responsive topbar/panels, accessible task controls,
-  dialog semantics/focus handling, labels, keyboard actions, timezone handling, and
-  optimistic-conflict recovery were improved.
-- Supabase migration was applied successfully to the linked project
-  (project ref bxqdpikshuczcutymwrm); the remote migration ledger matches local.
-- Docker Compose migration startup was repaired after correcting escaped environment
-  substitutions. Local containers now start healthy.
-
-VALIDATION EVIDENCE
-
-- Backend: 14 Maven tests passed, including PostgreSQL/Testcontainers integration.
-- Frontend: 10 Vitest tests passed.
-- Frontend TypeScript check and production build passed.
-- Production npm audit reported 0 vulnerabilities.
-- Docker images built; postgres, backend, and frontend containers are healthy.
-- Local API smoke test returned HTTP 200 for CSRF; a generated disposable user
-  registered (201), created a dummy task (201), and listed it while authenticated.
-- `git diff --check` and staged secret-pattern review passed.
-- Commit c75bd9c was pushed to origin/main.
-- GitHub Actions status was not queried because the local gh CLI is unavailable;
-  inspect the Actions tab for c75bd9c when convenient.
-
-REMAINING REQUIRED BEFORE PRODUCTION
-
-1. In Supabase SQL editor, assign a strong private password to role taskflow_app.
-   Never place that password in Git, this file, chat, or frontend variables.
-2. Create the Render service from render.yaml. Set SPRING_PROFILES_ACTIVE to
-   supabase,render, the Supabase URL/username/password, and a random
-   TASKFLOW_PROXY_SECRET of at least 32 characters. Keep the same proxy secret for
-   Vercel. Prefer the taskflow_app role using the Session pooler username format
-   taskflow_app.PROJECT_REF.
-3. Deploy/import frontend/ in Vercel. Set RENDER_BACKEND_URL to the Render URL and
-   TASKFLOW_PROXY_SECRET to the exact matching value. Set the project root to frontend.
-4. Perform live smoke tests on the Vercel domain: register, sign in, create/edit/
-   complete/delete a task, reload, sign out, sign back in, and test another account
-   cannot access the first account's tasks. Confirm Secure/HttpOnly cookies.
-
-OPTIONAL FOLLOW-UP
-
-- Add E2E, component, accessibility, and lint suites; pin Docker/action dependencies
-  by digest; add CSP/Permissions-Policy at the TLS edge; add metrics/DB-pool telemetry.
-- Consider reduced-motion styling, duplicate timezone-key cleanup, calendar-grid
-  refinement, bundle-size work, and distinguishing stale-CSRF from other 403 errors.
-
-TASKS FOR THE NEXT MODEL
-
-- Do not redo the completed audit or rewrite application architecture.
-- Start with provider configuration and live deployment verification above.
-- Before any code change, inspect this handoff, `docs/deployment.md`, `render.yaml`,
-  `frontend/vercel.json`, and the latest commit.
-- Preserve the secret-handling rules and keep Agents.md ignored.
-
---- HISTORICAL AUDIT BELOW ---
-
-TASKFLOW - CONSOLIDATED PROBLEM REPORT
-Generated: 2026-09-15
-
-RESOLUTION STATUS - 2026-09-15
-
-- The actionable critical and high-priority findings below have been addressed in
-  the current fix pass, including the Vercel-to-Render proxy, authentication
-  hardening, task/query correctness, IndexedDB consistency, mobile layout, and
-  primary accessibility issues.
-- Validation now passes: 14 Maven tests (including PostgreSQL/Testcontainers),
-  10 frontend tests, frontend typecheck/production build, production npm audit,
-  Docker image builds, container health checks, and an authenticated local
-  register/create/list smoke test with disposable dummy data.
-- Remaining work is provider-side deployment configuration and live production
-  verification. Lower-priority hardening opportunities at the end of this report
-  remain optional follow-up work; this report is retained as the original audit
-  record and its pre-fix evidence should be read historically.
-
-STATUS SUMMARY
-
-- No critical authorization bypass, cross-user task leak, plaintext password storage,
-  or committed production secret was found.
-- Per-user ownership, BCrypt password hashing, hashed session tokens, CSRF protection,
-  and optimistic database locking are fundamentally sound.
-- The current repository is not ready for the planned Vercel frontend + Render
-  backend + Supabase database deployment without additional changes.
-
-
-CRITICAL - DEPLOYMENT BLOCKERS
-
-1. Vercel cannot currently reach the backend.
-
-   Evidence:
-   - frontend/src/app/api/http.ts:1 defaults requests to /api/v1.
-   - frontend/.env.example also specifies /api/v1.
-   - No vercel.json, Vercel function, or committed external rewrite exists.
-   - frontend/nginx.conf contains a proxy, but Vercel static hosting does not run it.
-
-   Impact:
-   Authentication and task requests deployed on Vercel return 404.
-
-   Recommended fix:
-   Add a Vercel external rewrite or same-origin proxy from /api/* to the public
-   Render backend.
-
-2. An absolute Render API URL breaks the current cookie model.
-
-   Evidence:
-   - AuthController.java:54-56 creates a host-only SameSite=Lax session cookie.
-   - SecurityConfig.java:19-20 creates a SameSite=Lax CSRF cookie.
-   - Vercel and Render domains are cross-site.
-
-   Impact:
-   Login may appear successful, but browsers will not reliably send the session and
-   CSRF cookies from the Vercel page to Render. Subsequent calls return 401 or 403.
-
-   Recommended fix:
-   Keep browser API calls on the Vercel origin and proxy /api through Vercel. Do not
-   rely only on CORS or credentials: include.
-
-
-HIGH-PRIORITY PROBLEMS
-
-3. Signed-in UI is effectively unusable on mobile.
-
-   Evidence:
-   - frontend/src/app/App.tsx:161-172 uses a fixed horizontal layout and hides overflow.
-   - frontend/src/app/components/LeftPanel.tsx:82-84 reserves a non-shrinking 320px sidebar.
-
-   Impact:
-   At 320-375px viewport widths, the task panel is clipped or inaccessible.
-
-   Recommended fix:
-   Move the sidebar into a mobile drawer, add responsive layout breakpoints, and
-   collapse topbar labels and controls on small screens.
-
-4. Optimistic-lock conflicts trap the open edit/delete modal on a stale version.
-
-   Evidence:
-   - frontend/src/app/App.tsx:110-139 continues using editingTask.version after a 409.
-   - Query invalidation does not replace the editingTask snapshot used by the modal.
-
-   Impact:
-   Every retry fails until the user closes and reopens the task.
-
-   Recommended fix:
-   On 409, fetch the latest task and refresh the modal version, or close the modal
-   with a clear conflict-resolution message.
-
-5. Render cold starts are not handled.
-
-   Evidence:
-   - frontend/src/app/auth/AuthGate.tsx:23-30 attempts authApi.me() once.
-   - The React Query retry policy does not cover this direct startup request.
-
-   Impact:
-   A transient Render wake-up error sends a valid user to the login screen with no
-   automatic recovery.
-
-   Recommended fix:
-   Add a server-starting state, bounded exponential retry, cancellation, and a manual
-   retry action before deciding that session restoration failed.
-
-6. Proxy-hosted authentication can place unrelated users in one throttle bucket.
-
-   Evidence:
-   - AuthController.java:32 and 39 use req.getRemoteAddr().
-   - Forwarded-header processing exists only in application-docker.properties:6.
-   - The Supabase/Render profile does not enable trusted forwarded-header processing.
-
-   Impact:
-   Vercel/Render proxy addresses may become shared throttle keys. A small number of
-   failures could temporarily block registration or login for every visitor.
-
-   Recommended fix:
-   Configure and verify trusted forwarded-header processing for the actual production
-   ingress, and enforce primary rate limits at a trusted edge or shared store.
-
-7. The selected timezone affects only the topbar clock.
-
-   Evidence:
-   - frontend/src/app/App.tsx:28 stores the selected timezone.
-   - frontend/src/app/api/http.ts:62 always sends the browser system timezone.
-   - Calendar/date rendering also uses browser-local Date behavior.
-
-   Impact:
-   Changing the timezone does not change Today, Tomorrow, calendar boundaries, task
-   display, or statistics.
-
-   Recommended fix:
-   Introduce one application-timezone source used by API headers, query keys, calendar
-   calculations, editing, and display. Alternatively, label this as clock-only.
-
-8. Unlimited task creation and an unbounded calendar response permit resource abuse.
-
-   Evidence:
-   - TaskController.java:80-82 allows task creation without a user quota/rate limit.
-   - TaskCreateDTO.java:12-13 permits 10,000-character descriptions.
-   - TaskController.java:68-72 returns every task in a month as one List.
-
-   Impact:
-   A registered account can exhaust Supabase quotas and create expensive responses or
-   backend memory pressure.
-
-   Recommended fix:
-   Add per-user creation/storage quotas, ingress rate limits, and pagination or a hard
-   result cap for calendar data.
-
-9. The backend does not follow the dynamic PaaS port contract.
-
-   Evidence:
-   - src/main/resources/application.properties:2 hardcodes server.port=8081.
-
-   Impact:
-   Render/Railway health routing can fail or require fragile manual port configuration.
-
-   Recommended fix:
-   Use server.port=${PORT:8081}.
-
-
-INDEXEDDB AND LOCAL-CACHE PROBLEMS
-
-10. A stale GET can repopulate the cache after a mutation clears it.
-
-    Evidence:
-    - frontend/src/app/api/http.ts:81-83 schedules successful GET cache writes without
-      awaiting them or tying them to a cache mutation generation.
-
-    Impact:
-    A pre-mutation response that completes late can remain cached for up to 24 hours.
-
-    Recommended fix:
-    Track a per-user cache generation. Increment it before mutations and reject writes
-    created under an older generation.
-
-11. Expired records can remain physically stored indefinitely.
-
-    Evidence:
-    - frontend/src/app/cache/localCache.ts:93-115 deletes an expired entry only when
-      that exact key is read.
-    - Pruning is otherwise triggered only after another write for the same owner.
-
-    Impact:
-    Logically expired task data can remain in IndexedDB on shared devices.
-
-    Recommended fix:
-    Sweep expired records when the database opens, when users authenticate, and at
-    bounded maintenance intervals.
-
-12. Cache deletion failures are reported as successful.
-
-    Evidence:
-    - localCache.ts:57-60 swallows all queued IndexedDB errors.
-    - setLocalCacheEnabled(false) consequently returns success after a failed clear.
-    - App.tsx:40-50 displays LOCAL DATA CLEARED.
-
-    Impact:
-    Users can be falsely told that local task data was removed.
-
-    Recommended fix:
-    Propagate deletion failures separately from best-effort cache-write failures and
-    show success only after the deletion transaction completes.
-
-13. Network requests have no timeout before cache fallback.
-
-    Evidence:
-    - frontend/src/app/api/http.ts:63 uses fetch without a bounded timeout.
-
-    Impact:
-    A stalled request can display loading indefinitely and never return cached data.
-
-    Recommended fix:
-    Combine caller cancellation with an internal timeout and preserve a distinct
-    timeout/network error classification.
-
-14. Cached fallback data is indistinguishable from live data.
-
-    Impact:
-    Users can act on stale task data without knowing the server is unavailable.
-
-    Recommended fix:
-    Return freshness metadata from the request/cache layer and display an offline or
-    stale-data banner.
-
-
-DATA, STATISTICS, AND FILTERING PROBLEMS
-
-15. Sidebar statistics do not match the corresponding filters.
-
-    Evidence:
-    - LeftPanel.tsx:198-214 displays remaining-task counts for Today, Tomorrow, and
-      This Week.
-    - TaskSpecifications.java:51-55 applies only date ranges for those quick filters,
-      so completed/cancelled tasks are also returned.
-
-    Impact:
-    A label can show one task, while clicking it displays several.
-
-    Recommended fix:
-    Apply remaining() to those filters or change the displayed totals to count the
-    same data returned by each filter.
-
-16. completedToday does not mean completed today.
-
-    Evidence:
-    - TaskService.java:47-48 counts completed/cancelled tasks due today.
-    - Task.java has no completedAt timestamp.
-
-    Impact:
-    A task completed today but due tomorrow is excluded; a task completed yesterday
-    but due today is included.
-
-    Recommended fix:
-    Persist completedAt on status transitions and define separately whether CANCELLED
-    should count as completed.
-
-17. Lower-bound date filtering unexpectedly includes undated tasks.
-
-    Evidence:
-    - TaskSpecifications.java:41-43 implements startDate as dueAt >= startDate OR
-      dueAt IS NULL.
-
-    Impact:
-    General date-range searches include tasks that do not have a date. The main
-    timeline currently relies on this undocumented behavior.
-
-    Recommended fix:
-    Make undated inclusion an explicit request option instead of part of startDate.
-
-18. Due-state styling disagrees with backend overdue behavior.
-
-    Evidence:
-    - TaskCard.tsx:38-54 compares calendar days instead of the exact due instant and
-      does not neutralize completed/cancelled tasks.
-
-    Impact:
-    A task due earlier today is styled as Today while the backend calls it overdue.
-    Completed historical tasks can retain a red overdue accent.
-
-    Recommended fix:
-    Compare active tasks with the exact current instant and style terminal states
-    independently.
-
-19. Custom categories entered in TaskModal are not reusable.
-
-    Evidence:
-    - TaskModal.tsx:178-180 includes custom text only in the current request.
-    - The category is not added to App.customCategories.
-
-    Impact:
-    It cannot be selected normally for the next task or used from the sidebar filter.
-
-    Recommended fix:
-    Persist categories server-side, derive them from tasks, or append successful new
-    categories to the opted-in local preferences.
-
-
-UX AND ACCESSIBILITY PROBLEMS
-
-20. Calendar/statistics failures are silently shown as empty data or zero counts.
-
-    Evidence:
-    - LeftPanel.tsx:51-62 ignores both query error states.
-
-    Recommended fix:
-    Preserve prior data and show explicit unavailable/retry states.
-
-21. Primary workflows have accessibility failures.
-
-    Evidence:
-    - TaskCard.tsx:73-83 uses a clickable div without keyboard semantics.
-    - LeftPanel.tsx:242-247 uses a mouse-only clickable span for category removal.
-    - TaskModal lacks dialog semantics, focus trapping, and focus restoration.
-    - Search relies on placeholder text without an accessible label.
-    - Several icon-only controls have no accessible name.
-
-    Recommended fix:
-    Use semantic buttons/links, accessible names, proper labels, and an accessible
-    dialog primitive with focus management.
-
-22. Cross-tab login can discard current work.
-
-    Evidence:
-    - AuthGate.tsx:34-40 resets every receiving tab for every login broadcast, even
-      when the account has not changed.
-
-    Impact:
-    React Query state, local task cache, and an unsaved task draft can be cleared.
-
-    Recommended fix:
-    Include account/session identity in broadcasts and avoid resetting same-account
-    tabs unnecessarily.
-
-23. Task mutations are not broadcast to other tabs.
-
-    Impact:
-    Another foreground tab can retain stale tasks until an unrelated refetch occurs.
-
-    Recommended fix:
-    Broadcast per-user task invalidation events after successful mutations.
-
-24. Stored preferences are trusted without validation.
-
-    Evidence:
-    - localCache.ts:80-85 parses and returns arbitrary stored JSON.
-    - There is no application error boundary.
-
-    Impact:
-    Corrupt or manually edited preferences can crash authenticated rendering.
-
-    Recommended fix:
-    Validate preference schemas, discard invalid data, and add an error boundary.
-
-25. Public-page metadata is unfinished.
-
-    Evidence:
-    - frontend/index.html contains PC version adaptation text and noindex, nofollow.
-
-    Impact:
-    A public deployment is intentionally excluded from search indexing and has an
-    unrelated description.
-
-
-BACKEND AND SECURITY HARDENING
-
-26. Secure cookies depend on an easy-to-miss environment variable.
-
-    Evidence:
-    - AuthController.java and SecurityConfig.java default app.cookie-secure to false.
-    - application-supabase.properties does not override the default.
-
-    Recommended fix:
-    Make secure cookies the production/Supabase default and require an explicit local
-    development override.
-
-27. Authentication throttling is instance-local and restart-sensitive.
-
-    Evidence:
-    - AuthThrottle.java stores windows in an in-memory LinkedHashMap.
-
-    Impact:
-    Render cold starts/restarts clear limits, and multiple replicas enforce unrelated
-    limits. A synchronized full-map expiry scan also occurs on every attempt.
-
-    Recommended fix:
-    Use a trusted ingress limiter or a shared bounded rate-limit store.
-
-28. Authenticated requests and statistics use excessive database round trips.
-
-    Evidence:
-    - AuthService.java:57-60 performs a session lookup followed by a user lookup on
-      every authenticated request.
-    - TaskService.java:45-50 executes six separate statistics queries.
-    - The Supabase Hikari pool defaults to five connections.
-
-    Recommended fix:
-    Query session identity with one join/projection and compute statistics with one
-    conditional-aggregation query.
-
-29. The documented Supabase database identity is overprivileged.
-
-    Evidence:
-    - .env.supabase.example and docs/supabase.md use postgres.PROJECT_REF.
-
-    Impact:
-    Backend credential compromise has a larger database blast radius than necessary.
-
-    Recommended fix:
-    Create a dedicated least-privilege application role with only the required
-    schema/table/sequence permissions.
-
-30. Database permits ownerless tasks.
-
-    Evidence:
-    - The ownership migration adds nullable user_id.
-    - Task.userId lacks nullable=false.
-
-    Impact:
-    Future application bugs or manual writes can create inaccessible orphan rows.
-
-    Recommended fix:
-    Resolve legacy rows and then make user_id NOT NULL.
-
-31. Validation error handling is brittle for object-level constraints.
-
-    Evidence:
-    - GlobalExceptionHandler.java:57-60 casts every validation error to FieldError.
-
-    Impact:
-    A future record/class-level validator can turn a normal 400 into a 500.
-
-    Recommended fix:
-    Handle FieldError and ObjectError separately.
-
-
-OPERATIONS AND DEPLOYMENT GAPS
-
-32. No dedicated readiness endpoint exists.
-
-    /api/v1/auth/csrf can return 200 but does not prove database/schema readiness and
-    unnecessarily creates CSRF state.
-
-33. Supabase migrations are external to backend deployment.
-
-    application-supabase.properties uses ddl-auto=validate, but no Flyway/Liquibase or
-    deployment migration gate exists. A missing migration prevents backend startup.
-
-34. The production environment example is incomplete.
-
-    .env.supabase.example omits APP_COOKIE_SECURE, APP_CORS_ORIGINS, and trusted proxy
-    configuration.
-
-35. Docker Compose can serve the frontend before the backend is ready.
-
-    The frontend depends only on backend container startup; the backend has no health
-    check or healthy dependency condition.
-
-36. frontend/.dockerignore does not exclude future .env files.
-
-    A future ignored frontend/.env can enter the Docker build context and intermediate
-    image layers. VITE_* values are public once bundled, but unrelated secrets must not
-    enter the context.
-
-37. CI does not exercise deployment containers or the proxy.
-
-    It runs backend tests and frontend test/build/audit, but does not build Dockerfiles,
-    validate Nginx templates, or smoke-test same-origin cookie authentication.
-
-38. Production observability is minimal.
-
-    There is no dedicated health instrumentation, metrics exporter, request correlation
-    ID, structured access logging, or database-pool telemetry.
-
-
-LOWER-PRIORITY ITEMS
-
-- TIMEZONES can contain duplicate React keys when Local System equals a listed zone.
-- The UI uses many 9-10px labels and some low-contrast text.
-- Reduced-motion preferences are not handled.
-- A 403 clears the local CSRF token but does not distinguish stale CSRF from another
-  authorization failure.
-- The calendar deliberately renders an additional week after the normal month grid,
-  producing excessive empty dates for some months.
-- The production bundle is one 439.60kB JavaScript chunk (137.19kB gzip).
-- There is no lint script, component test suite, accessibility test suite, or E2E suite.
-- Docker base images and GitHub Actions use moving tags rather than immutable digests.
-- Nginx lacks CSP and Permissions-Policy. HSTS belongs at the actual TLS edge.
-
-
-POSITIVE CONTROLS VERIFIED
-
-- Every task listing/query is scoped to the authenticated user.
-- Foreign task reads and mutations return not found rather than exposing ownership.
+- Supabase project ref: `bxqdpikshuczcutymwrm`
+
+Repository state at handoff:
+
+- Local repository: `C:/Coding/Taskflow`
+- Branch: `main`
+- Last application commit before the documentation handoff: `f952abb`
+- First handoff commit: `725d32d` (superseded by this clean rewrite)
+- `Agents.md` is intentionally ignored and must not be committed.
+- `.env*` secrets, `.vercel/`, dependency directories, and build output are ignored.
+
+Verified on 2026-09-16:
+
+- Frontend returned HTTP 200.
+- Backend readiness returned HTTP 200 and UP.
+- Live registration, logout, fresh login, five task creations, task listing, and final logout succeeded through Vercel.
+- Production schema version is 3.
+- Time-sensitive aggregate database snapshot: 4 users, 6 tasks, 3 valid sessions, 2 rate-limit rows.
+- Backend tests: 14/14 passed with PostgreSQL Testcontainers.
+- Frontend tests: 11/11 passed.
+- Frontend TypeScript and production build passed.
+
+## 2. Immediate required actions
+
+1. Rotate the database password. A database password was pasted in the earlier conversation and must be treated as exposed. Change the relevant Supabase/database role password, update `SUPABASE_DB_PASSWORD` only in Render, redeploy, and verify readiness and login. Never paste the replacement into chat, Git, logs, or documentation.
+2. Rotate or delete the disposable `taskflow_demo` account before real-user launch because its password was shared in the earlier conversation. The password is intentionally absent from this file.
+3. Check GitHub Actions for the current application and handoff commits.
+4. Run a complete two-user browser acceptance test: registration, logout/login, create/edit/complete/reload/delete, ownership isolation, cache opt-in/fallback/disable, and production cookie inspection.
+5. Confirm Render connects using the least-privilege `taskflow_app` database role rather than a project owner/superuser.
+
+## 3. Architecture decisions that must be preserved
+
+The Vercel same-origin proxy is required. The application uses host-only Secure/HttpOnly SameSite=Lax session cookies plus CSRF cookies. Sending browser API requests directly from Vercel to Render would make them cross-site and break or weaken the current cookie model. Browser calls must remain at `/api/v1` on the Vercel origin.
+
+Nginx is not used in Vercel production. It is used only in the local Docker frontend container to serve the Vite build and proxy `/api` to the backend.
+
+Technology stack:
+
+- Backend: Java 21, Spring Boot 3.5.14, Spring MVC, Spring Security, Spring Data JPA, Jakarta Validation, PostgreSQL, HikariCP, Maven.
+- Frontend: React 18.3.1, TypeScript, Vite 6.3.5, TanStack React Query 5, Tailwind CSS 4, Radix/shadcn-style components, Vitest.
+- Testing: JUnit/Spring Boot Test/Testcontainers PostgreSQL and Vitest/fake-indexeddb.
+- Production: Vercel + Render free Docker web service + Supabase PostgreSQL.
+- Local: Docker Compose PostgreSQL + migration job + backend + Nginx frontend.
+
+## 4. Authentication and authorization
+
+Taskflow uses custom application authentication, not Supabase Auth. Accounts live in `app.app_users`; the browser never connects directly to Supabase and receives no database credentials.
+
+Rules and controls:
+
+- User ID regex: `[A-Za-z0-9_.-]{3,32}`.
+- User IDs normalize to lowercase.
+- Passwords are 12–72 UTF-8 bytes; registration requires confirmation.
+- Passwords use BCrypt strength 12 and are never stored plaintext.
+- Unknown-user login performs a dummy BCrypt check to reduce timing leakage.
+- Sessions use 32 random bytes; the database stores only SHA-256 token hashes.
+- Sessions expire after 12 hours and are revoked on logout.
+- Cookie: `TASKFLOW_SESSION`, HttpOnly, Secure in production, SameSite=Lax, path `/`.
+- CSRF remains enabled; mutations use `X-XSRF-TOKEN` obtained from `GET /api/v1/auth/csrf`.
+- Spring Security is stateless; `SessionFilter` establishes custom identity.
+- Login/registration throttling uses shared PostgreSQL rows and survives backend restarts.
+- Render mode requires the Vercel proxy secret and trusted client IP header.
+- Every task query and mutation is scoped to the authenticated user.
+- Foreign tasks return not found rather than revealing existence or ownership.
 - Updates, status changes, and deletes require optimistic versions.
-- Passwords use BCrypt cost 12 and are not stored in plaintext.
-- Raw session tokens are sent only as HttpOnly cookies; SHA-256 hashes are stored.
-- CSRF protection remains enabled for state-changing endpoints.
-- Supabase browser roles are denied access to the private application schema.
-- IndexedDB keys include origin, API root, and authenticated user ID.
-- Local caching is opt-in and does not store passwords, cookies, or offline mutations.
+- There is currently no email address or password-recovery flow.
 
+Frontend auth behavior:
 
-VALIDATION RESULTS
+- Restores the session through `/auth/me`.
+- Retries Render cold starts up to five times with bounded backoff.
+- Offers manual retry if the backend remains unavailable.
+- Uses a 15-second API timeout.
+- Deduplicates CSRF requests.
+- Retries authentication once after stale verification/CSRF failure.
+- Aborts pending requests after account changes.
+- Synchronizes login, logout, session expiry, and task mutations across tabs.
+- Clears React Query and browser cache state when account identity changes.
+- Checks `X-Taskflow-User` to detect an unexpected session/account switch.
 
-- Frontend tests: 9/9 passed.
-- Frontend TypeScript and production build: passed.
-- Production npm audit: 0 known vulnerabilities.
-- Maven non-container tests: 8 passed.
-- Three Docker/Testcontainers integration suites could not run locally because Docker
-  Desktop was not running. This was an environment failure, not an assertion failure.
-- Latest GitHub CI for commit 1c8540e: passed.
-- Repository was clean and synchronized with origin/main during the audit.
+Important files:
 
+- `src/main/java/com/taskflow/security/`
+- `frontend/src/app/auth/AuthGate.tsx`
+- `frontend/src/app/api/http.ts`
 
-RECOMMENDED REPAIR ORDER
+## 5. Task API and domain
 
-1. Vercel proxy, dynamic port, and readiness endpoint.
-2. Trusted proxy handling and authentication throttling.
-3. Mobile layout and optimistic-conflict recovery.
-4. Render cold-start handling.
-5. Timezone, statistics, and filter correctness.
-6. IndexedDB race prevention, cleanup guarantees, timeout, and stale indicator.
-7. Accessibility and cross-tab synchronization.
-8. Resource quotas, query consolidation, least-privilege database role, and operations.
+Base path: `/api/v1`.
+
+Authentication endpoints:
+
+- `GET /auth/csrf`
+- `POST /auth/register`
+- `POST /auth/login`
+- `GET /auth/me`
+- `POST /auth/logout`
+
+Task endpoints:
+
+- `GET /tasks`
+- `GET /tasks/search`
+- `GET /tasks/stats`
+- `GET /tasks/up-next`
+- `GET /tasks/calendar`
+- `GET /tasks/{id}`
+- `POST /tasks`
+- `PUT /tasks/{id}`
+- `PATCH /tasks/{id}/status`
+- `DELETE /tasks/{id}?version=...`
+
+Task data and behavior:
+
+- UUID task ID and UUID owner.
+- Required title, maximum 255 characters.
+- Description maximum 10,000 characters.
+- Optional `OffsetDateTime` due date.
+- Optional normalized category, maximum 100 characters.
+- Priorities: LOW, MEDIUM, HIGH, URGENT.
+- Statuses: PENDING, IN_PROGRESS, DONE, CANCELLED.
+- Completion timestamp maintained on terminal transitions.
+- Soft deletion and optimistic versioning.
+- Created/updated auditing timestamps.
+- User-scoped search, category/date/quick filters, explicit undated inclusion, timezone-aware boundaries, statistics, monthly calendar summaries, and up-next.
+- Stable pagination with explicitly allowed sort fields.
+- Page size capped at 10.
+- Default quota: 2,000 tasks per user through `APP_MAX_TASKS_PER_USER`.
+
+Core files:
+
+- `src/main/java/com/taskflow/controller/TaskController.java`
+- `src/main/java/com/taskflow/service/TaskService.java`
+- `src/main/java/com/taskflow/entity/Task.java`
+- `src/main/java/com/taskflow/repository/TaskRepository.java`
+- `src/main/java/com/taskflow/repository/TaskSpecifications.java`
+- `src/main/java/com/taskflow/dto/`
+- `src/main/java/com/taskflow/enums/`
+
+## 6. Supabase/PostgreSQL design
+
+Supabase is managed PostgreSQL only; application authentication and authorization remain in Spring.
+
+Committed migrations:
+
+1. `supabase/migrations/20260913143000_create_taskflow_schema.sql`
+2. `supabase/migrations/20260913160000_add_accounts_and_ownership.sql`
+3. `supabase/migrations/20260915120000_harden_runtime.sql`
+
+Private schema `app` contains:
+
+- `app.app_users`: normalized user IDs and BCrypt hashes.
+- `app.tasks`: user-owned tasks.
+- `app.login_sessions`: hashed session tokens and expirations.
+- `app.auth_rate_limits`: shared throttle windows.
+- `app.schema_version`: deployment compatibility gate.
+
+Database controls:
+
+- Required application schema version: 3.
+- Supabase profile uses Hibernate `ddl-auto=validate`; migrations own production schema changes.
+- RLS is enabled as defense in depth.
+- `anon`, `authenticated`, and `PUBLIC` browser roles have no application-table access.
+- Intended backend role `taskflow_app` has required schema/table/sequence privileges only, with no superuser, role creation, database creation, or RLS bypass.
+- Use Supabase Session pooler/direct connection on port 5432. Do not use transaction pooler port 6543 with Hibernate.
+- Pooler username is generally `taskflow_app.<project-ref>`; use the exact Supabase Connect value.
+- Create normal test users/tasks through the application API, never direct SQL, so hashing, CSRF, ownership, quota, and audit paths are exercised.
+
+Relevant files: `docs/supabase.md`, `.env.supabase.example`, `supabase/config.toml`, `application-supabase.properties`, and `SchemaHealth.java`.
+
+## 7. Per-user browser cache
+
+The cache is optional and local to the user's browser/device. It does not consume Render disk or create cache rows in Supabase.
+
+- Opt-in control: account menu -> “Save on this device”.
+- IndexedDB database: `taskflow-local-cache-v1`.
+- localStorage stores consent and validated UI preferences.
+- IndexedDB stores successful task GET responses only.
+- Scope includes browser origin, API root, and authenticated user ID.
+- Passwords, cookies, CSRF tokens, session tokens, and offline mutations are never cached.
+- Network-first behavior; cached fallback is visibly marked stale.
+- TTL: 24 hours.
+- Limit: 80 records and approximately 4 MiB per user.
+- Expired-record sweep and least-recently-touched pruning.
+- Serialized writes and cross-tab task invalidation.
+- Revision/epoch fencing prevents late stale GETs from repopulating data after mutation, logout, or clear.
+- Disabling consent clears that user's cached records and preferences.
+- Browser policy, private browsing, or storage pressure may evict IndexedDB.
+- This is a read cache, not offline synchronization; task writes require the server.
+
+Files: `frontend/src/app/cache/localCache.ts`, `preferences.ts`, `localCache.test.ts`, `http.ts`, and `Topbar.tsx`.
+
+## 8. Frontend/UI state
+
+Implemented:
+
+- Responsive desktop layout and mobile sidebar drawer.
+- Dark charcoal/gray palette rather than blue-black.
+- Taskflow logo on the left with signed-in user/menu beside it.
+- Account dropdown contains save-to-device and sign-out controls.
+- Real API search, categories, quick/date filters, calendar, stats, up-next, CRUD, priorities, statuses, and timezone selection.
+- Accessible labels, semantic controls, dialog/focus improvements, and keyboard actions.
+- Server-starting, unavailable, stale-cache, validation, and optimistic-conflict messaging.
+- Custom categories retained in opted-in preferences.
+
+Important files: `App.tsx`, `Topbar.tsx`, `LeftPanel.tsx`, `RightPanel.tsx`, `TaskCard.tsx`, `TaskModal.tsx`, `theme.css`, and `index.css`.
+
+## 9. Vercel configuration
+
+Files: `frontend/vercel.json`, `frontend/api/[...path].mjs`, `frontend/.env.example`.
+
+Project settings:
+
+- Root directory: `frontend`.
+- Framework: Vite.
+- Build: `npm run build`.
+- Output: `dist`.
+- Required variables: `RENDER_BACKEND_URL=https://taskflow-api-d6bm.onrender.com` and `TASKFLOW_PROXY_SECRET` matching Render exactly and at least 32 characters.
+- `VITE_API_BASE_URL` is optional; normal production default is `/api/v1`.
+
+Proxy behavior:
+
+- `/api/:path*` rewrites to the catch-all function; other routes fall back to `index.html`.
+- Function maximum duration is 60 seconds for Render cold starts.
+- Forwards cookies, CSRF headers, timezone, and request body.
+- Adds trusted proxy secret and client IP.
+- Preserves upstream `Set-Cookie`.
+- Marks APIs `private, no-store`; hashed assets are immutable cached.
+- Removes hop-by-hop headers plus `content-encoding` and `content-length` because the fetch layer may already decode the body.
+- Missing/short proxy configuration returns 503; unavailable Render returns controlled 502.
+
+Recent production fixes:
+
+- `4b12434`: nested API paths now reach the Vercel catch-all.
+- `39bf921`: stale gzip/content-encoding no longer causes “decoding failed”.
+- `f952abb`: authentication retries after stale request verification.
+
+## 10. Render configuration
+
+Blueprint: `render.yaml`.
+
+- Service: `taskflow-api`.
+- Service ID: `srv-dal70itbedkc73bga0sg`.
+- Workspace ID: `tea-dal5ud67bikc73egfbi0`.
+- Last recorded live deployment: `dep-dal8b2lg1s2s73ej1jjg`.
+- Free plan, Singapore region, Docker runtime.
+- Auto-deploy on commit.
+- Health check: `/actuator/health/readiness`.
+
+Required variable names:
+
+- `SPRING_PROFILES_ACTIVE=supabase,render`
+- `SUPABASE_DB_URL`
+- `SUPABASE_DB_USERNAME`
+- `SUPABASE_DB_PASSWORD`
+- `TASKFLOW_PROXY_SECRET`
+- `APP_MAX_TASKS_PER_USER=2000`
+- `APP_CORS_ORIGINS`
+
+`APP_CORS_ORIGINS` is manual Render dashboard state and is not declared in `render.yaml`. It currently permits the production Vercel alias and owner-project alias. Preserve/update it when changing domains or recreating the service. Missing CORS previously produced `403 Invalid CORS request`.
+
+Runtime notes:
+
+- `server.port=${PORT:8081}` follows Render's dynamic port contract.
+- Readiness includes application readiness, database health, and schema version.
+- Render profile requires the trusted Vercel proxy.
+- Free services sleep when idle; the first request may take roughly a minute. The frontend handles this with retry/startup UI.
+
+## 11. Local development, tests, and CI
+
+Full local stack:
+
+```powershell
+docker compose --env-file .env.example up --build
+```
+
+Local URL: `http://localhost:5173`. Compose starts PostgreSQL, migration job, backend, and Nginx frontend. Backend waits for migrations; frontend waits for backend health. Local HTTP configuration disables Secure cookies.
+
+Validation commands:
+
+```powershell
+.\mvnw.cmd -B -ntp test
+cd frontend
+npm ci
+npm test
+npm run build
+npm audit --omit=dev
+```
+
+Latest backend result: 14 tests, 0 failures/errors/skips. Suites cover auth ownership, throttling, task integration/unit behavior, and application context. PostgreSQL 17 Testcontainers passed. Current Mockito/Byte Buddy dynamic-agent output is a nonfatal future-JDK warning.
+
+Latest frontend result: 11 tests (3 HTTP/auth tests and 8 IndexedDB tests), all passed. Build includes TypeScript validation and passed. Prior production dependency audit reported zero vulnerabilities.
+
+CI file: `.github/workflows/ci.yml`.
+
+- Backend Maven tests with Java 21.
+- Frontend `npm ci`, production audit, tests, and build with Node 22.
+- Compose validation and backend/frontend Docker image builds.
+- GitHub Actions currently use moving major tags rather than immutable digests.
+
+## 12. Production demo data
+
+Disposable account `taskflow_demo` was registered through the live Vercel application, logged out, logged in again, verified, and logged out. Its password was shared with the owner previously but is intentionally omitted from Git.
+
+Five verified owned tasks:
+
+1. Plan the week — HIGH — Planning.
+2. Review project notes — MEDIUM — Work.
+3. Buy groceries — LOW — Personal.
+4. Finish Taskflow deployment checklist — URGENT — Taskflow.
+5. Read for 30 minutes — LOW — Learning.
+
+Production contains additional user data beyond this demo. Never assume the database is disposable, reveal user records, or delete accounts/tasks without explicit authorization.
+
+## 13. Major completed work
+
+- Supabase PostgreSQL integration and three migrations.
+- Custom user-ID/password authentication.
+- Per-user authorization and ownership isolation.
+- BCrypt passwords, hashed sessions, CSRF, logout revocation, shared throttling.
+- Same-origin Vercel proxy and trusted Render proxy enforcement.
+- Render dynamic port and database/schema-aware readiness.
+- Task quota, optimistic locking, completion timestamps, filters/stats/calendar correctness.
+- Responsive mobile layout, improved dark theme, account bar, accessible controls/dialog behavior.
+- IndexedDB consent, scoping, bounds, expiry, stale fallback, invalidation, cross-tab updates, and race fencing.
+- Render cold-start handling.
+- Consistent user-ID validation.
+- Vercel nested route, compressed response, CORS, and stale authentication retry fixes.
+- Docker Compose migration/health sequencing and GitHub CI.
+
+Important commits:
+
+- `f952abb` auth retry after stale verification.
+- `39bf921` proxy decoding fix.
+- `4b12434` nested API routing.
+- `480abe4` Render free plan.
+- `c75bd9c` broad audit remediation.
+- `883cfa2` account bar/dark theme.
+- `15590a8` authenticated UI/per-user cache.
+- `c3ecad8` authentication/task authorization.
+- `78bbd7f` Supabase integration.
+
+## 14. Remaining work
+
+P0:
+
+- Rotate the previously disclosed database credential and verify deployment.
+- Rotate/delete shared demo credentials before public launch.
+- Verify GitHub CI on the latest commits.
+
+P1 production acceptance:
+
+- Complete a two-user browser E2E test covering all auth/task/cache flows.
+- Confirm Secure, HttpOnly, SameSite=Lax cookies on the Vercel domain.
+- Confirm task/API responses are not cached by Vercel/CDN.
+- Confirm `APP_CORS_ORIGINS` survives provider/service recreation.
+- Confirm the least-privilege `taskflow_app` role is actually used.
+- Document provider environment variables reproducibly without secret values.
+
+P2 improvements:
+
+- Add Playwright/Cypress E2E tests.
+- Add broader component and automated accessibility tests.
+- Add ESLint and enforce it in CI.
+- Add provider monitoring/alerts, error dashboards, and Hikari/database pool metrics.
+- Add CSP and Permissions-Policy after inventorying required resources.
+- Pin Docker images and GitHub Actions to immutable digests where maintainable.
+- Improve stale-CSRF versus generic 403 messaging.
+- Add reduced-motion styling.
+- Clean duplicate timezone option keys and refine the extended calendar grid.
+- Continue bundle/dependency trimming; many generated UI components are unused.
+- Decide on public indexing and fix `frontend/index.html` metadata/robots settings.
+- Design password recovery before onboarding users who cannot tolerate permanent account loss.
+
+## 15. Troubleshooting map
+
+Account creation/login:
+
+- 404: Vercel rewrite or catch-all regression.
+- Browser “decoding failed”: proxy forwarded stale encoding/length headers.
+- `403 Invalid CORS request`: exact active Vercel origin missing from Render CORS.
+- Other 403: stale CSRF, proxy-secret mismatch, or direct Render access.
+- 502: Render waking or unreachable.
+- 503 from proxy: backend URL/secret missing or secret too short.
+- 401 after successful login: inspect Vercel `Set-Cookie` forwarding and cookie attributes; do not bypass the proxy.
+
+Backend not ready:
+
+- Inspect Render logs for connection, credential, Hibernate validation, or schema-version errors.
+- Ensure JDBC URL has one `jdbc:postgresql://` prefix and correct database/SSL parameters.
+- Use Session pooler 5432, not transaction pooler 6543.
+- Confirm username format and rotated password.
+- Confirm all three migrations and schema version 3.
+- Confirm `supabase,render` profiles and required environment variables.
+
+Frontend deployment:
+
+- Confirm Vercel root directory `frontend`.
+- Run `npm ci`, `npm test`, and `npm run build` locally.
+- Confirm `vercel.json` and catch-all function are deployed.
+- Confirm both production Vercel variables exist.
+
+Cache:
+
+- Confirm consent for the current user.
+- Inspect IndexedDB `taskflow-local-cache-v1` and scoped localStorage keys.
+- Remember private browsing/storage pressure may evict data.
+- Disabling cache must remove the current user's records/preferences.
+- Cached data cannot create offline tasks.
+
+## 16. Secret-handling rules
+
+Never commit or print:
+
+- Database/Supabase passwords.
+- `TASKFLOW_PROXY_SECRET`.
+- Session cookies, raw tokens, or CSRF tokens.
+- OAuth/provider tokens, private keys, or `.env` contents.
+
+Before every push:
+
+- Inspect `git status`, staged diff, and `git diff --check`.
+- Scan staged changes for secrets and connection credentials.
+- Keep `Agents.md`, `.env`, and `.vercel` untracked.
+- Run tests/build appropriate to the change.
+- Preserve unrelated user changes.
+
+## 17. Restart checklist for the next model
+
+1. Read this file completely.
+2. Run `git status --short` and `git log -5 --oneline`.
+3. Read `docs/deployment.md`, `docs/supabase.md`, `render.yaml`, `frontend/vercel.json`, `frontend/api/[...path].mjs`, application Render/Supabase profiles, `http.ts`, `AuthGate.tsx`, and `localCache.ts` before related work.
+4. Do not redo the completed broad audit without material code changes.
+5. Preserve the same-origin proxy, ownership, CSRF, and cache-scoping invariants.
+6. Use application APIs for test data rather than direct database writes.
+7. Keep critical security and architecture decisions with the root engineer/model.
+8. Never reuse or reveal credentials from the old conversation.
+9. Before committing: tests/build, status/diff review, `git diff --check`, secret scan.
+
+The application is deployed and functional, but should be treated as a small production/beta service until credentials are rotated and the complete two-user acceptance flow is recorded.
