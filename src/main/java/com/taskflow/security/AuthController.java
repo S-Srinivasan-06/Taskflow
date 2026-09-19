@@ -12,10 +12,10 @@ import java.util.*;
 public class AuthController {
     public record Signup(
         @NotBlank @Pattern(regexp = "[A-Za-z0-9_.-]{3,32}", message = "User ID must be 3-32 letters, numbers, dots, underscores or hyphens") String username,
-        @NotBlank @Size(min=12, max=72) String password,
-        @NotBlank @Size(min=12, max=72) String confirmPassword) {}
+        @NotBlank @Size(min=8, max=64) String password,
+        @NotBlank @Size(min=8, max=64) String confirmPassword) {}
     public record Login(@NotBlank @Pattern(regexp = "[A-Za-z0-9_.-]{3,32}") String username,
-                        @NotBlank @Size(min=12, max=72) String password) {}
+                        @NotBlank @Size(min=8, max=64) String password) {}
     private final AuthService auth;
     private final CurrentUser current;
     private final AuthThrottle throttle;

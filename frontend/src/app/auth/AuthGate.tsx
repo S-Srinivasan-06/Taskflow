@@ -14,10 +14,14 @@ export default function AuthGate() {
   const [unavailable, setUnavailable] = useState(false);
   const [restoreAttempt, setRestoreAttempt] = useState(0);
   const authChannel = useRef<BroadcastChannel | null>(null);
-  const [client] = useState(() => new QueryClient({ defaultOptions: { queries: {
-    retry: (count, error) => !(error instanceof ApiError && error.status < 500) && count < 1,
-    staleTime: 30_000, gcTime: 300_000,
-  } } }));
+  const [client] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: (count, error) => !(error instanceof ApiError && error.status < 500) && count < 1,
+        staleTime: 30_000, gcTime: 300_000,
+      }
+    }
+  }));
   const [loggingIn, setLoggingIn] = useState(false);
   const loginTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -150,7 +154,7 @@ export default function AuthGate() {
   }} />;
   return <QueryClientProvider client={client}>
     <Suspense fallback={<main className="taskflow-wait-page grid min-h-dvh place-content-center"><Loader3D label="Loading your tasks" size="small" /></main>}>
-    <App key={user.id} user={user} onLogout={logout} />
+      <App key={user.id} user={user} onLogout={logout} />
     </Suspense>
   </QueryClientProvider>;
 }
@@ -197,11 +201,11 @@ function LoginForm({ notice, onSuccess }: { notice: string; onSuccess: (user: Us
       </label>
       <p className="text-xs">3–32 letters, numbers, dots, underscores or hyphens. Case insensitive.</p>
       <label className="block font-bold">Password
-        <input className={inputStyle} type="password" autoComplete={signup ? 'new-password' : 'current-password'} required minLength={12} maxLength={72} value={password} onChange={e => setPassword(e.target.value)} />
+        <input className={inputStyle} type="password" autoComplete={signup ? 'new-password' : 'current-password'} required minLength={8} maxLength={64} value={password} onChange={e => setPassword(e.target.value)} />
       </label>
       {signup && <><label className="block font-bold">Confirm password
-        <input className={inputStyle} type="password" autoComplete="new-password" required minLength={12} maxLength={72} value={confirmation} onChange={e => setConfirmation(e.target.value)} />
-      </label><p className="text-xs">Use at least 12 characters. Keep your password safe: email recovery is not available.</p></>}
+        <input className={inputStyle} type="password" autoComplete="new-password" required minLength={8} maxLength={64} value={confirmation} onChange={e => setConfirmation(e.target.value)} />
+      </label><p className="text-xs">Use at least 8 characters. Keep your password safe: email recovery is not available.</p></>}
       <button disabled={busy} className="motion-press w-full p-3 bg-orange-500 border-2 border-black font-bold disabled:opacity-50 disabled:transform-none">{busy ? 'Please wait…' : signup ? 'Create account' : 'Sign in'}</button>
       <button type="button" disabled={busy} onClick={() => { setSignup(!signup); setError(''); setPassword(''); setConfirmation(''); }} className="underline">
         {signup ? 'Already have an account? Sign in' : 'New here? Create an account'}

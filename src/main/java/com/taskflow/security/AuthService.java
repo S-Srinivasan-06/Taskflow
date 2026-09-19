@@ -39,8 +39,8 @@ public class AuthService {
         return user.get();
     }
     private void checkPassword(String password) {
-        if (password == null || password.length() < 12 || password.getBytes(StandardCharsets.UTF_8).length > 72)
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must contain at least 12 characters and at most 72 UTF-8 bytes");
+        if (password == null || password.length() < 8 || password.getBytes(StandardCharsets.UTF_8).length > 64)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must contain at least 8 characters and at most 64 UTF-8 bytes");
     }
     public String issueSession(AppUser user) {
         sessions.deleteByExpiresAtBefore(OffsetDateTime.now());
