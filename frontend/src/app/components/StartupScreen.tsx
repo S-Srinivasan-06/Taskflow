@@ -2,19 +2,20 @@ import { RefreshCw } from 'lucide-react';
 import { Loader3D } from './Loader3D';
 
 interface StartupScreenProps {
-  message: string;
-  unavailable: boolean;
-  onRetry: () => void;
+  message?: string;
+  unavailable?: boolean;
+  statusLabel?: string;
+  onRetry?: () => void;
 }
 
-export function StartupScreen({ message, unavailable, onRetry }: StartupScreenProps) {
+export function StartupScreen({ message, unavailable = false, statusLabel, onRetry }: StartupScreenProps) {
   return (
     <main className="taskflow-wait-page min-h-dvh overflow-hidden px-4 py-8 text-black dark:text-zinc-100">
       <div className="mx-auto grid min-h-[calc(100dvh-4rem)] w-full max-w-2xl place-content-center text-center">
         <div className="taskflow-enter"><Loader3D label="Starting Taskflow" showOrbitDots /></div>
 
         <p className="mt-7 font-mono text-[10px] font-black uppercase tracking-[0.3em] text-orange-600 dark:text-orange-400">
-          {unavailable ? 'Render is taking a power nap' : 'Calling the server'}
+          {statusLabel || (unavailable ? 'Render is taking a power nap' : 'Calling the server')}
         </p>
         <h1 className="mt-3 text-balance text-2xl font-black uppercase sm:text-4xl">
           {unavailable ? 'Taskflow needs another nudge.' : 'Waking up your workspace.'}

@@ -18,6 +18,15 @@ export default function AuthGate() {
     retry: (count, error) => !(error instanceof ApiError && error.status < 500) && count < 1,
     staleTime: 30_000, gcTime: 300_000,
   } } }));
+  const [loggingIn, setLoggingIn] = useState(false);
+  const loginTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (loginTimerRef.current) clearTimeout(loginTimerRef.current);
+    };
+  }, []);
+
   function reset() {
     const previous = apiUser();
     setApiUser(null);
@@ -30,15 +39,31 @@ export default function AuthGate() {
     const controller = new AbortController();
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     setLoading(true); setUnavailable(false);
+    const startTime = Date.now();
+    const waitRemaining = async () => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, 5000 - elapsed);
+      if (remaining > 0 && alive) {
+        await new Promise<void>(resolve => {
+          retryTimer = setTimeout(resolve, remaining);
+          controller.signal.addEventListener('abort', () => { clearTimeout(retryTimer); resolve(); }, { once: true });
+        });
+      }
+    };
     const restore = async () => {
       for (let attempt = 0; attempt < 5 && alive; attempt++) {
         try {
           const next = await authApi.me(controller.signal);
+          await waitRemaining();
           if (alive) { setApiUser(next); setUser(next); setNotice(''); setLoading(false); }
           return;
         } catch (error) {
           if (!alive) return;
-          if (error instanceof ApiError && error.status === 401) { setLoading(false); return; }
+          if (error instanceof ApiError && error.status === 401) {
+            await waitRemaining();
+            if (alive) setLoading(false);
+            return;
+          }
           if (attempt === 4 || (error instanceof ApiError && error.status < 500)) break;
           setNotice('Starting Taskflow. A cold start can take up to two minutes...');
           await new Promise<void>(resolve => {
@@ -47,6 +72,7 @@ export default function AuthGate() {
           });
         }
       }
+      await waitRemaining();
       if (alive) { setLoading(false); setUnavailable(true); setNotice('Cannot reach Taskflow. Check your connection and retry.'); }
     };
     void restore();
@@ -104,13 +130,23 @@ export default function AuthGate() {
       setNotice('Signed out locally, but the server session could not be ended. Reconnect and sign out again.');
     }
   }
-  if (loading || unavailable) return <StartupScreen
+  if (loading || unavailable || loggingIn) return <StartupScreen
     message={notice}
     unavailable={unavailable}
+    statusLabel={loggingIn ? 'Authenticating' : undefined}
     onRetry={() => setRestoreAttempt(n => n + 1)}
   />;
   if (!user) return <LoginForm notice={notice} onSuccess={next => {
-    reset(); setApiUser(next); setUser(next); setNotice(''); notifyTabs('login');
+    reset();
+    setApiUser(next);
+    setNotice('Preparing your workspace...');
+    setLoggingIn(true);
+    notifyTabs('login');
+    loginTimerRef.current = setTimeout(() => {
+      setUser(next);
+      setNotice('');
+      setLoggingIn(false);
+    }, 5000);
   }} />;
   return <QueryClientProvider client={client}>
     <Suspense fallback={<main className="taskflow-wait-page grid min-h-dvh place-content-center"><Loader3D label="Loading your tasks" size="small" /></main>}>
