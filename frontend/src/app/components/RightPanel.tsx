@@ -1,10 +1,8 @@
-import { useState, useEffect, useRef, RefObject, useLayoutEffect } from 'react';
+import type { RefObject } from 'react';
 import { Search } from 'lucide-react';
-import { useInfiniteQuery } from '@tanstack/react-query';
-import { format, startOfDay } from 'date-fns';
-import { taskApi } from '../api/taskApi';
-import { Task } from './types';
+import type { Task } from '../tasks/types';
 import { TaskCard } from './TaskCard';
+import { useTaskFeed } from '../tasks/useTaskFeed';
 
 interface Props {
   selectedDate: Date | null;
@@ -15,155 +13,24 @@ interface Props {
   setQuickFilter: (q: string) => void;
   onEditTask: (task: Task) => void;
   onToggleStatus: (task: Task) => void;
-  onNewTask: () => void;
-  searchRef: RefObject<HTMLInputElement | null>;
+  searchRef: RefObject<HTMLInputElement>;
 }
 
 export function RightPanel({
   selectedDate, activeCategory, searchQuery, setSearchQuery,
-  quickFilter, setQuickFilter, onEditTask, onToggleStatus, onNewTask, searchRef,
+  quickFilter, setQuickFilter, onEditTask, onToggleStatus, searchRef,
 }: Props) {
 
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery.trim());
-  const [browserDay, setBrowserDay] = useState(() => startOfDay(new Date()).getTime());
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setDebouncedSearchQuery(searchQuery.trim()), 250);
-    return () => window.clearTimeout(timeout);
-  }, [searchQuery]);
-
-  useEffect(() => {
-    const checkBrowserDay = () => {
-      const nextDay = startOfDay(new Date()).getTime();
-      setBrowserDay(previousDay => previousDay === nextDay ? previousDay : nextDay);
-    };
-    const interval = window.setInterval(checkBrowserDay, 60_000);
-    return () => window.clearInterval(interval);
-  }, []);
-
-  const isBidirectional = !selectedDate && !debouncedSearchQuery;
-  const todayStr = new Date(browserDay).toISOString();
-
-  // Query 1: Future tasks (or standard unified query if not bidirectional)
   const {
-    data: futureData,
-    fetchNextPage: fetchNextFuture,
-    hasNextPage: hasNextFuture,
-    isFetchingNextPage: isFetchingNextFuture,
-    status: futureStatus,
-    isError: isFutureError,
-    refetch: refetchFuture,
-  } = useInfiniteQuery({
-    queryKey: ['tasks', 'future', browserDay, activeCategory, debouncedSearchQuery, quickFilter, selectedDate?.toISOString()],
-    queryFn: ({ pageParam = 0, signal }) => taskApi.searchTasks({
-      page: pageParam,
-      size: 10,
-      search: debouncedSearchQuery || undefined,
-      category: activeCategory === 'ALL' ? undefined : activeCategory,
-      quickFilter: quickFilter === 'ALL' ? undefined : quickFilter,
-      date: selectedDate ? format(selectedDate, 'yyyy-MM-dd') : undefined,
-      startDate: isBidirectional ? todayStr : undefined,
-      includeUndated: isBidirectional,
-      sort: 'dueAt,asc',
-    }, signal),
-    getNextPageParam: (lastPage) => lastPage.number + 1 < lastPage.totalPages ? lastPage.number + 1 : undefined,
-    initialPageParam: 0,
-  });
-
-  // Query 2: Past tasks (only active if bidirectional)
-  const {
-    data: pastData,
-    fetchNextPage: fetchNextPast,
-    hasNextPage: hasNextPast,
-    isFetchingNextPage: isFetchingNextPast,
-    status: pastStatus,
-    isError: isPastError,
-    refetch: refetchPast,
-  } = useInfiniteQuery({
-    queryKey: ['tasks', 'past', browserDay, activeCategory, quickFilter],
-    queryFn: ({ pageParam = 0, signal }) => taskApi.searchTasks({
-      page: pageParam,
-      size: 10,
-      category: activeCategory === 'ALL' ? undefined : activeCategory,
-      quickFilter: quickFilter === 'ALL' ? undefined : quickFilter,
-      endDate: todayStr,
-      sort: 'dueAt,desc',
-    }, signal),
-    getNextPageParam: (lastPage) => lastPage.number + 1 < lastPage.totalPages ? lastPage.number + 1 : undefined,
-    initialPageParam: 0,
-    enabled: isBidirectional,
-  });
-
-  const futureRef = useRef<HTMLDivElement>(null);
-  const pastRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const hasAutoScrolled = useRef(false);
-  const previousScrollHeight = useRef(0);
-  const previousPastTaskCount = useRef(0);
-
-  useEffect(() => {
-    if (!hasNextFuture || isFetchingNextFuture) return;
-    const observer = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting) fetchNextFuture();
-    }, { threshold: 1.0 });
-    if (futureRef.current) observer.observe(futureRef.current);
-    return () => observer.disconnect();
-  }, [fetchNextFuture, hasNextFuture, isFetchingNextFuture]);
-
-  useEffect(() => {
-    if (!hasNextPast || isFetchingNextPast || !isBidirectional) return;
-    const observer = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting) fetchNextPast();
-    }, { threshold: 1.0 });
-    if (pastRef.current) observer.observe(pastRef.current);
-    return () => observer.disconnect();
-  }, [fetchNextPast, hasNextPast, isFetchingNextPast, isBidirectional]);
-
-  const pastTasks = isBidirectional ? [...(pastData?.pages.flatMap(p => p.content) || [])].reverse() : [];
-  const futureTasks = futureData?.pages.flatMap(p => p.content) || [];
-  
-  const totalCount = (isBidirectional ? pastData?.pages[0]?.totalElements || 0 : 0) + (futureData?.pages[0]?.totalElements || 0);
-
-  useLayoutEffect(() => {
-    if (isBidirectional && scrollContainerRef.current) {
-      const container = scrollContainerRef.current;
-      const pastTaskCount = pastTasks.length;
-      
-      if (!hasAutoScrolled.current && futureTasks.length > 0) {
-        const todayMarker = document.getElementById('today-marker');
-        if (todayMarker) {
-          container.scrollTop = todayMarker.offsetTop - 150; // Offset for header padding
-          hasAutoScrolled.current = true;
-        }
-      } else if (
-        pastTaskCount > previousPastTaskCount.current &&
-        previousScrollHeight.current > 0 &&
-        hasAutoScrolled.current
-      ) {
-        // Only compensate when older tasks were prepended; future-page appends
-        // should leave the user's current viewport unchanged.
-        container.scrollTop += container.scrollHeight - previousScrollHeight.current;
-      }
-      previousScrollHeight.current = container.scrollHeight;
-      previousPastTaskCount.current = pastTaskCount;
-    }
-  }, [pastTasks.length, futureTasks.length, isBidirectional]);
-
-  // Reset auto scroll on filter change
-  useEffect(() => {
-    hasAutoScrolled.current = false;
-    previousScrollHeight.current = 0;
-    previousPastTaskCount.current = 0;
-  }, [activeCategory, quickFilter, selectedDate, debouncedSearchQuery, browserDay]);
-
-  const retryQueries = () => {
-    if (isFutureError) void refetchFuture();
-    if (isBidirectional && isPastError) void refetchPast();
-  };
+    pastTasks, futureTasks, totalCount, isBidirectional,
+    isFetchingNextPast, isFetchingNextFuture,
+    futureRef, pastRef, scrollContainerRef,
+    isError, isLoading, retryQueries,
+  } = useTaskFeed({ selectedDate, activeCategory, searchQuery, quickFilter });
 
   const quickFilters = ['REMAINING', 'ALL', 'URGENT', 'HIGH', 'MEDIUM', 'LOW', 'COMPLETED', 'OVERDUE'];
 
-  if (isFutureError || (isBidirectional && isPastError)) {
+  if (isError) {
     return (
       <main className='flex-1 p-6 overflow-y-auto bg-stone-100 dark:bg-black'>
         <div className='flex h-full flex-col items-center justify-center gap-4 text-center'>
@@ -181,7 +48,7 @@ export function RightPanel({
     );
   }
 
-  if (futureStatus === 'pending' || (isBidirectional && pastStatus === 'pending')) {
+  if (isLoading) {
     return (
       <main className="flex-1 p-6 overflow-y-auto bg-stone-100 dark:bg-black">
         <div className="space-y-4">
@@ -204,7 +71,7 @@ export function RightPanel({
           <div className="relative flex-1 max-w-md">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500" strokeWidth={3} />
             <input
-              ref={searchRef as any}
+              ref={searchRef}
               type="text"
               aria-label="Search tasks"
               maxLength={255}

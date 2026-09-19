@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { parseISO, format } from 'date-fns';
 import { X } from 'lucide-react';
-import { Task, Priority, TaskStatus, CustomCategory, TaskCreateRequest, TaskUpdateRequest } from './types';
+import type { Task, Priority, TaskStatus, CustomCategory, TaskCreateRequest, TaskUpdateRequest } from '../tasks/types';
 
 interface TaskModalProps {
   task: Task | null;
@@ -34,36 +34,18 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
   const [title, setTitle] = useState(task?.title ?? '');
   const [description, setDescription] = useState(task?.description ?? '');
 
-  const getInitialDate = () => {
-    if (!task?.dueAt) return '';
+  const initialDuePart = (pattern: string, fallback: string) => {
+    if (!task?.dueAt) return fallback;
     try {
-      return format(parseISO(task.dueAt), 'yyyy-MM-dd');
+      return format(parseISO(task.dueAt), pattern);
     } catch {
-      return '';
+      return fallback;
     }
   };
 
-  const getInitialHour = () => {
-    if (!task?.dueAt) return '12';
-    try {
-      return format(parseISO(task.dueAt), 'HH');
-    } catch {
-      return '12';
-    }
-  };
-
-  const getInitialMinute = () => {
-    if (!task?.dueAt) return '00';
-    try {
-      return format(parseISO(task.dueAt), 'mm');
-    } catch {
-      return '00';
-    }
-  };
-
-  const [dueDate, setDueDate] = useState(getInitialDate());
-  const [dueHour, setDueHour] = useState(getInitialHour());
-  const [dueMinute, setDueMinute] = useState(getInitialMinute());
+  const [dueDate, setDueDate] = useState(() => initialDuePart('yyyy-MM-dd', ''));
+  const [dueHour, setDueHour] = useState(() => initialDuePart('HH', '12'));
+  const [dueMinute, setDueMinute] = useState(() => initialDuePart('mm', '00'));
 
   const [priority, setPriority] = useState<Priority>(task?.priority ?? 'LOW');
   const [status, setStatus] = useState<TaskStatus>(task?.status ?? 'PENDING');
@@ -195,26 +177,14 @@ export function TaskModal({ task, categories, onClose, onSave, onDelete }: TaskM
       }
     }
 
-    if (isEdit) {
-      const data: TaskUpdateRequest = {
-        title: title.trim(),
-        description: description || null,
-        dueAt: dueAtValue,
-        category: resolvedCategory,
-        priority,
-        status,
-      };
-      onSave(data);
-    } else {
-      const data: TaskCreateRequest = {
-        title: title.trim(),
-        description: description || null,
-        dueAt: dueAtValue,
-        category: resolvedCategory,
-        priority,
-      };
-      onSave(data);
-    }
+    onSave({
+      title: title.trim(),
+      description: description || null,
+      dueAt: dueAtValue,
+      category: resolvedCategory,
+      priority,
+      ...(isEdit ? { status } : {}),
+    });
   };
 
   const handleDelete = () => {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Clock, ChevronDown } from 'lucide-react';
-import { TIMEZONES } from './types';
+import { TIMEZONES } from './timezones';
 
 interface Props {
   timezone: string;

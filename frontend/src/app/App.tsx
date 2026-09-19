@@ -4,16 +4,16 @@ import { Topbar } from './components/Topbar';
 import { LeftPanel } from './components/LeftPanel';
 import { RightPanel } from './components/RightPanel';
 import { TaskModal } from './components/TaskModal';
-import { Task, CustomCategory, TaskCreateRequest, TaskUpdateRequest } from './components/types';
-import { taskApi } from './api/taskApi';
-import { User, ApiError, hasStaleReads } from './api/http';
+import type { CustomCategory } from './tasks/types';
+import { useTaskEditor, toastStyle } from './tasks/useTaskEditor';
+import { User, hasStaleReads } from './api/http';
 import { AnimatePresence } from 'motion/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { isLocalCacheEnabled, loadLocalPreferences, saveLocalPreferences, setLocalCacheEnabled } from './cache/localCache';
 
 import { LocalPreferences, validPreferences } from './cache/preferences';
 
-export default function App({ user, onLogout }: { user: User; onLogout: () => void; notice: string }) {
+export default function App({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [saved] = useState(() => loadLocalPreferences(user.id, validPreferences));
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stale, setStale] = useState(hasStaleReads);
@@ -23,8 +23,6 @@ export default function App({ user, onLogout }: { user: User; onLogout: () => vo
   const [activeCategory, setActiveCategory] = useState<string>('ALL');
   const [quickFilter, setQuickFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
   const [timezone, setTimezone] = useState(saved?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
@@ -32,8 +30,7 @@ export default function App({ user, onLogout }: { user: User; onLogout: () => vo
     { name: 'work', color: 'bg-blue-500' }, { name: 'personal', color: 'bg-purple-500' }, { name: 'health', color: 'bg-emerald-500' },
   ]);
   const [localCache, setLocalCache] = useState(() => isLocalCacheEnabled(user.id));
-  const saving = useRef(false);
-  const toggling = useRef(new Set<string>());
+  const editor = useTaskEditor(rememberCategory);
   useEffect(() => {
     const changed = () => setStale(hasStaleReads());
     const storageError = () => {
@@ -55,14 +52,6 @@ export default function App({ user, onLogout }: { user: User; onLogout: () => vo
     if (name && name !== 'all') setCustomCategories(previous => previous.some(c => c.name === name) || previous.length >= 100
       ? previous : [...previous, { name, color: 'bg-blue-500' }]);
   }
-  function resolveConflict(error: unknown) {
-    if (error instanceof ApiError && (error.status === 409 || error.status === 404)) {
-      setIsModalOpen(false); setEditingTask(null);
-      toast.error('This task changed in another session. Reopen it to review the latest version.', { style: toastStyle });
-      return true;
-    }
-    return false;
-  }
 
   useEffect(() => {
     if (localCache) saveLocalPreferences(user.id, { timezone, categories: customCategories } satisfies LocalPreferences);
@@ -70,23 +59,23 @@ export default function App({ user, onLogout }: { user: User; onLogout: () => vo
 
   async function toggleLocalCache(enabled: boolean) {
     try {
-    const available = await setLocalCacheEnabled(user.id, enabled);
-    if (!available) {
-      toast.error('Browser storage is unavailable', { style: toastStyle });
-      return;
-    }
-    setLocalCache(enabled);
-    if (enabled) {
-      saveLocalPreferences(user.id, { timezone, categories: customCategories } satisfies LocalPreferences);
-      toast.success('LOCAL CACHE ENABLED', { style: toastStyle });
-    } else toast.success('LOCAL DATA CLEARED', { style: toastStyle });
+      const available = await setLocalCacheEnabled(user.id, enabled);
+      if (!available) {
+        toast.error('Browser storage is unavailable', { style: toastStyle });
+        return;
+      }
+      setLocalCache(enabled);
+      if (enabled) {
+        saveLocalPreferences(user.id, { timezone, categories: customCategories } satisfies LocalPreferences);
+        toast.success('LOCAL CACHE ENABLED', { style: toastStyle });
+      } else toast.success('LOCAL DATA CLEARED', { style: toastStyle });
     } catch {
       setLocalCache(isLocalCacheEnabled(user.id));
       toast.error('Could not clear saved data. Clear this site in browser storage settings.', { style: toastStyle });
     }
   }
 
-  // Initial fetch + keyboard shortcuts
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
@@ -94,9 +83,8 @@ export default function App({ user, onLogout }: { user: User; onLogout: () => vo
       const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 
       if (e.key === 'Escape') {
-        if (isModalOpen) {
-          setIsModalOpen(false);
-          setEditingTask(null);
+        if (editor.isOpen) {
+          editor.close();
         } else if (selectedDate) {
           setSelectedDate(null);
         }
@@ -106,8 +94,7 @@ export default function App({ user, onLogout }: { user: User; onLogout: () => vo
       if (isInput) return;
 
       if (e.key === 'n' || e.key === 'N' || e.key === 'c' || e.key === 'C') {
-        setEditingTask(null);
-        setIsModalOpen(true);
+        editor.open();
       } else if (e.key === '/') {
         e.preventDefault();
         searchRef.current?.focus();
@@ -116,92 +103,14 @@ export default function App({ user, onLogout }: { user: User; onLogout: () => vo
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isModalOpen, selectedDate]);
-
-  const toastStyle = {
-    background: '#fff',
-    border: '2px solid #000',
-    boxShadow: '4px 4px 0px #000',
-    borderRadius: '0',
-    fontFamily: "'JetBrains Mono', monospace",
-    fontWeight: '700' as const,
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.05em',
-    fontSize: '12px',
-  };
-
-  const handleCreateTask = async (data: TaskCreateRequest) => {
-    try {
-      await taskApi.create(data);
-      rememberCategory(data.category);
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
-      queryClient.invalidateQueries({ queryKey: ['calendar'] });
-      setIsModalOpen(false);
-      setEditingTask(null);
-      toast.success('TASK CREATED', { style: toastStyle });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Creation failed', { style: toastStyle });
-    }
-  };
-
-  const handleUpdateTask = async (data: TaskUpdateRequest) => {
-    if (!editingTask) return;
-    try {
-      await taskApi.update(editingTask.id, { ...data, version: editingTask.version });
-      rememberCategory(data.category);
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
-      queryClient.invalidateQueries({ queryKey: ['calendar'] });
-      setIsModalOpen(false);
-      setEditingTask(null);
-      toast.success('TASK UPDATED', { style: toastStyle });
-    } catch (e) {
-      await queryClient.invalidateQueries();
-      if (resolveConflict(e)) return;
-      toast.error(e instanceof Error ? e.message : 'Update failed', { style: toastStyle });
-    }
-  };
-
-  const handleDeleteTask = async (id: string) => {
-    try {
-      if (!editingTask) return;
-      await taskApi.delete(id, editingTask.version);
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
-      queryClient.invalidateQueries({ queryKey: ['calendar'] });
-      setIsModalOpen(false);
-      setEditingTask(null);
-      toast.success('TASK DELETED', { style: { ...toastStyle, background: '#dc2626', color: '#fff', border: '2px solid #991b1b' } });
-    } catch (e) {
-      await queryClient.invalidateQueries();
-      if (resolveConflict(e)) return;
-      toast.error(e instanceof Error ? e.message : 'Delete failed', { style: toastStyle });
-    }
-  };
-
-  const handleToggleStatus = async (task: Task) => {
-    const id = task.id;
-    if (toggling.current.has(id)) return;
-    toggling.current.add(id);
-    try {
-      const status = task.status === 'DONE' || task.status === 'CANCELLED' ? 'PENDING' : 'DONE';
-      await taskApi.status(id, status, task.version);
-    } catch (e) { toast.error(e instanceof Error ? e.message : 'Status update failed', {style: toastStyle}); }
-    finally { toggling.current.delete(id); await queryClient.invalidateQueries(); }
-  };
-
-  const openNewTask = () => {
-    setEditingTask(null);
-    setIsModalOpen(true);
-  };
+  }, [editor.isOpen, selectedDate]);
 
   return (
     <div className="h-dvh flex flex-col bg-stone-100 dark:bg-[#121316] text-black dark:text-[#f5f5f4] overflow-hidden">
       <Topbar
         sidebarOpen={sidebarOpen}
         onToggleSidebar={() => setSidebarOpen(open => !open)}
-        onNewTask={openNewTask}
+        onNewTask={() => editor.open()}
         timezone={timezone}
         setTimezone={setTimezone}
         username={user.username}
@@ -236,26 +145,20 @@ export default function App({ user, onLogout }: { user: User; onLogout: () => vo
           setQuickFilter={setQuickFilter}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
-          onEditTask={(task) => { setEditingTask(task); setIsModalOpen(true); }}
-          onToggleStatus={handleToggleStatus}
-          onNewTask={openNewTask}
+          onEditTask={editor.open}
+          onToggleStatus={editor.toggleStatus}
           searchRef={searchRef}
         />
       </div>
 
       <AnimatePresence>
-      {isModalOpen && (
+      {editor.isOpen && (
         <TaskModal
-          task={editingTask}
+          task={editor.task}
           categories={customCategories}
-          onClose={() => { setIsModalOpen(false); setEditingTask(null); }}
-          onSave={async (data) => {
-            if (saving.current) return;
-            saving.current = true;
-            try { await (editingTask ? handleUpdateTask(data as TaskUpdateRequest) : handleCreateTask(data as TaskCreateRequest)); }
-            finally { saving.current = false; }
-          }}
-          onDelete={handleDeleteTask}
+          onClose={editor.close}
+          onSave={editor.save}
+          onDelete={editor.remove}
         />
       )}
 

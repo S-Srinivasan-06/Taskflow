@@ -7,7 +7,7 @@ import {
   startOfDay,
 } from 'date-fns';
 import { Check } from 'lucide-react';
-import { Task } from './types';
+import type { Task } from '../tasks/types';
 
 type TaskGroup = 'PAST' | 'TODAY/FUTURE' | 'NO_DUE_DATE';
 type AccentGroup = 'OVERDUE' | 'TODAY' | 'TOMORROW' | 'THIS_WEEK' | 'LATER' | 'SOMEDAY';

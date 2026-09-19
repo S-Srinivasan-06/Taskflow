@@ -1,4 +1,4 @@
-import type { CustomCategory } from '../components/types';
+import type { CustomCategory } from '../tasks/types';
 export interface LocalPreferences { timezone: string; categories: CustomCategory[] }
 export const CATEGORY_COLORS = ['bg-blue-500', 'bg-yellow-400', 'bg-orange-500', 'bg-red-600', 'bg-purple-500', 'bg-emerald-500', 'bg-pink-500'];
 export function validPreferences(value: unknown): value is LocalPreferences {

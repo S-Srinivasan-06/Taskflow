@@ -111,7 +111,7 @@ export default function AuthGate() {
   }} />;
   return <QueryClientProvider client={client}>
     <Suspense fallback={<p role="status" className="p-6">Loading your tasks...</p>}>
-    <App key={user.id} user={user} onLogout={logout} notice={notice} />
+    <App key={user.id} user={user} onLogout={logout} />
     </Suspense>
   </QueryClientProvider>;
 }

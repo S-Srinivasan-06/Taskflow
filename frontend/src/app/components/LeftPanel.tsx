@@ -6,7 +6,8 @@ import {
 } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { taskApi } from '../api/taskApi';
-import { CustomCategory } from './types';
+import type { CustomCategory } from '../tasks/types';
+import { CATEGORY_COLORS } from '../cache/preferences';
 
 interface Props {
   calendarMonth: Date;
@@ -19,8 +20,6 @@ interface Props {
   setCustomCategories: (c: CustomCategory[]) => void;
   setQuickFilter: (f: string) => void;
 }
-
-const COLORS = ['bg-blue-500', 'bg-yellow-400', 'bg-orange-500', 'bg-red-600', 'bg-purple-500', 'bg-emerald-500', 'bg-pink-500'];
 
 export function LeftPanel({
   calendarMonth, setCalendarMonth, selectedDate, setSelectedDate,
@@ -289,7 +288,7 @@ export function LeftPanel({
               autoFocus
             />
             <div className="flex gap-2 mb-6">
-              {COLORS.map(c => (
+              {CATEGORY_COLORS.map(c => (
                 <button
                   key={c}
                   onClick={() => setNewCatColor(c)}

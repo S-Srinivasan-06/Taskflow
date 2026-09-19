@@ -1,4 +1,4 @@
-import { Task, TaskCreateRequest, TaskUpdateRequest, TaskStatus } from '../components/types';
+import type { Task, TaskCreateRequest, TaskUpdateRequest, TaskStatus } from '../tasks/types';
 import { request } from './http';
 export interface PageResponse<T> { content: T[]; totalPages: number; totalElements: number; size: number; number: number }
 export interface TaskStats { totalActive: number; overdue: number; dueToday: number; completedToday: number; dueTomorrow: number; dueThisWeek: number }
