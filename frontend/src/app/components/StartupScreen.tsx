@@ -20,7 +20,7 @@ export function StartupScreen({ message, unavailable, onRetry }: StartupScreenPr
           {unavailable ? 'Taskflow needs another nudge.' : 'Waking up your workspace.'}
         </h1>
         <p role="status" aria-live="polite" className="mx-auto mt-4 max-w-md text-sm leading-6 text-stone-600 dark:text-zinc-400">
-          {message || 'A free Render server can need up to two minutes to wake and reconnect.'}
+          {message || 'The Taskflow backend runs on Render and may take up to two minutes to wake.'}
         </p>
 
         <div className="mx-auto mt-6 flex items-center gap-2 font-mono text-[10px] font-bold uppercase text-stone-500" aria-hidden="true">
