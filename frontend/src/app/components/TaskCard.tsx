@@ -79,7 +79,7 @@ export function TaskCard({ task, group, onEdit, onToggle }: Props) {
         GROUP_ACCENT[accentGroup],
         'shadow-brutal dark:shadow-[#ffffff] p-4 flex items-start gap-4',
         'hover:-translate-x-1 hover:-translate-y-1 hover:shadow-brutal-hover dark:hover:shadow-[4px_4px_0px_0px_#ffffff]',
-        'transition-all duration-150',
+        'task-card-enter motion-press transition-all duration-150 active:translate-x-0.5 active:translate-y-0.5',
         isDone ? 'opacity-50' : '',
       ].join(' ')}
     >
@@ -88,7 +88,8 @@ export function TaskCard({ task, group, onEdit, onToggle }: Props) {
         onClick={onToggle}
         className={[
           'mt-0.5 w-6 h-6 border-2 border-black dark:border-[#4169E1] flex items-center justify-center shrink-0',
-          'transition-colors shadow-brutal-sm dark:shadow-[#ffffff]',
+          'task-check transition-colors shadow-brutal-sm dark:shadow-[#ffffff] active:translate-x-0.5 active:translate-y-0.5',
+          isDone ? 'task-check--done' : '',
           isDone ? 'bg-black dark:bg-[#4169E1] text-white' : 'bg-white dark:bg-black hover:bg-stone-100 dark:hover:bg-[#333333]',
         ].join(' ')}
         aria-label={isDone ? 'Mark pending' : 'Mark done'}

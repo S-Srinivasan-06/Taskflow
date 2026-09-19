@@ -44,7 +44,7 @@ export function Topbar({
     <header className="h-14 border-b-2 border-black dark:border-zinc-700 bg-zinc-950 dark:bg-zinc-900 text-white flex items-center justify-between px-2 sm:px-4 lg:px-6 shrink-0 relative z-30">
       <div className="flex min-w-0 max-w-[calc(100%_-_5.5rem)] items-center gap-1.5 sm:max-w-none sm:gap-3">
         <button type="button" onClick={onToggleSidebar} aria-label={sidebarOpen ? 'Close navigation' : 'Open navigation'}
-          aria-controls="taskflow-sidebar" aria-expanded={sidebarOpen} className="md:hidden shrink-0 p-1 text-white">
+          aria-controls="taskflow-sidebar" aria-expanded={sidebarOpen} className="motion-press md:hidden shrink-0 p-1 text-white">
           {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
         <img src={logo} alt="Taskflow" className="h-7 w-auto shrink-0 object-contain sm:h-9" />
@@ -70,7 +70,7 @@ export function Topbar({
           {accountOpen && (
             <div
               role="menu"
-              className="fixed left-3 right-3 top-16 w-auto sm:absolute sm:left-3 sm:right-auto sm:top-[calc(100%+1rem)] sm:w-72 border-2 border-black dark:border-zinc-600 bg-white dark:bg-zinc-800 p-2 font-mono text-black dark:text-zinc-100 shadow-[4px_4px_0_0_#f97316]"
+              className="ui-popover fixed left-3 right-3 top-16 w-auto sm:absolute sm:left-3 sm:right-auto sm:top-[calc(100%+1rem)] sm:w-72 border-2 border-black dark:border-zinc-600 bg-white dark:bg-zinc-800 p-2 font-mono text-black dark:text-zinc-100 shadow-[4px_4px_0_0_#f97316]"
             >
               <label className="flex cursor-pointer items-start gap-3 p-3 hover:bg-stone-100 dark:hover:bg-zinc-700">
                 <HardDrive size={18} strokeWidth={2.5} className="mt-0.5 shrink-0" />
@@ -109,8 +109,9 @@ export function Topbar({
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-4">
         <DarkModeToggle />
         <button
+          type="button"
           onClick={onNewTask}
-          className="flex items-center gap-2 bg-orange-500 text-black border-2 border-transparent px-2 py-1.5 sm:px-4 font-mono text-xs font-bold shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] dark:shadow-[#ffffff] hover:translate-x-[-2px] hover:translate-y-[-2px] hover:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] dark:hover:shadow-[4px_4px_0px_0px_#ffffff] transition-all"
+          className="motion-press flex items-center gap-2 bg-orange-500 text-black border-2 border-transparent px-2 py-1.5 sm:px-4 font-mono text-xs font-bold shadow-[2px_2px_0px_0px_rgba(255,255,255,1)] dark:shadow-[#ffffff] dark:hover:shadow-[4px_4px_0px_0px_#ffffff]"
         >
           <Plus size={16} strokeWidth={3} /> <span className="hidden sm:inline">NEW TASK</span>
         </button>

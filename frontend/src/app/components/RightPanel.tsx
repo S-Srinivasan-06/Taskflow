@@ -33,13 +33,13 @@ export function RightPanel({
   if (isError) {
     return (
       <main className='flex-1 p-6 overflow-y-auto bg-stone-100 dark:bg-black'>
-        <div className='flex h-full flex-col items-center justify-center gap-4 text-center'>
+        <div className='state-enter flex h-full flex-col items-center justify-center gap-4 text-center'>
           <div className='text-2xl font-bold'>COULD NOT LOAD TASKS.</div>
           <p className='text-sm text-stone-500'>Check your connection and try again.</p>
           <button
             type='button'
             onClick={retryQueries}
-            className='border-2 border-black dark:border-[#4169E1] bg-white dark:bg-black px-4 py-2 text-xs font-bold uppercase shadow-brutal-sm dark:shadow-[#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5'
+            className='motion-press border-2 border-black dark:border-[#4169E1] bg-white dark:bg-black px-4 py-2 text-xs font-bold uppercase shadow-brutal-sm dark:shadow-[#ffffff]'
           >
             RETRY
           </button>
@@ -50,10 +50,14 @@ export function RightPanel({
 
   if (isLoading) {
     return (
-      <main className="flex-1 p-6 overflow-y-auto bg-stone-100 dark:bg-black">
-        <div className="space-y-4">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-20 bg-stone-200 dark:bg-[#333333] border-2 border-black dark:border-[#4169E1] animate-pulse" />
+      <main className="flex-1 overflow-y-auto bg-stone-100 p-3 dark:bg-black sm:p-4 lg:p-6" aria-label="Loading task list">
+        <div className="mx-auto max-w-6xl space-y-3" role="status" aria-live="polite">
+          <span className="sr-only">Loading tasks</span>
+          {[72, 54, 83, 62, 76].map((width, i) => (
+            <div key={width} className="skeleton-card h-24 border-2 border-black bg-stone-200 p-4 dark:border-[#4169E1] dark:bg-[#333333]" style={{ animationDelay: `${i * 70}ms` }}>
+              <div className="skeleton-line h-3" style={{ width: `${width}%` }} />
+              <div className="skeleton-line mt-4 h-2 w-2/5" />
+            </div>
           ))}
         </div>
       </main>
@@ -119,7 +123,7 @@ export function RightPanel({
       {/* Task List */}
       <div ref={scrollContainerRef} className="mx-auto w-full max-w-6xl flex-1 space-y-3 overflow-y-auto p-3 sm:p-4 lg:p-6 xl:px-10">
         {(pastTasks.length === 0 && futureTasks.length === 0) ? (
-          <div className="flex flex-col items-center justify-center h-full select-none">
+          <div className="state-enter flex flex-col items-center justify-center h-full select-none">
             <div
               className="text-stone-200 dark:text-stone-800 leading-none tracking-tighter font-bold text-center"
               style={{ fontSize: 'clamp(2rem, 5vw, 4rem)' }}

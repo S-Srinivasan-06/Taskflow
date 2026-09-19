@@ -4,6 +4,7 @@ import { authApi, setApiUser, apiUser, User, ApiError, API_ROOT, invalidateTaskC
 import { clearLocalCache, maintainLocalCache } from '../cache/localCache';
 import { lazy, Suspense } from 'react';
 import { StartupScreen } from '../components/StartupScreen';
+import { Loader3D } from '../components/Loader3D';
 const App = lazy(() => import('../App'));
 
 export default function AuthGate() {
@@ -39,7 +40,7 @@ export default function AuthGate() {
           if (!alive) return;
           if (error instanceof ApiError && error.status === 401) { setLoading(false); return; }
           if (attempt === 4 || (error instanceof ApiError && error.status < 500)) break;
-          setNotice('Starting Taskflow. This can take about a minute...');
+          setNotice('Starting Taskflow. A cold start can take up to two minutes...');
           await new Promise<void>(resolve => {
             retryTimer = setTimeout(resolve, Math.min(1000 * 2 ** attempt, 8000));
             controller.signal.addEventListener('abort', () => { clearTimeout(retryTimer); resolve(); }, { once: true });
@@ -112,7 +113,7 @@ export default function AuthGate() {
     reset(); setApiUser(next); setUser(next); setNotice(''); notifyTabs('login');
   }} />;
   return <QueryClientProvider client={client}>
-    <Suspense fallback={<p role="status" className="p-6">Loading your tasks...</p>}>
+    <Suspense fallback={<main className="taskflow-wait-page grid min-h-dvh place-content-center"><Loader3D label="Loading your tasks" size="small" /></main>}>
     <App key={user.id} user={user} onLogout={logout} />
     </Suspense>
   </QueryClientProvider>;
@@ -140,8 +141,8 @@ function LoginForm({ notice, onSuccess }: { notice: string; onSuccess: (user: Us
     finally { setBusy(false); }
   }
   const inputStyle = "w-full border-2 border-black p-3 bg-white text-black mt-1";
-  return <main className="min-h-dvh bg-stone-100 text-black grid place-items-center p-3 sm:p-6">
-    <form onSubmit={submit} className="w-full max-w-md border-2 border-black bg-white p-5 shadow-brutal space-y-4 sm:p-8 sm:space-y-5">
+  return <main className="taskflow-auth-page min-h-dvh text-black dark:text-zinc-100 grid place-items-center p-3 sm:p-6">
+    <form onSubmit={submit} className="taskflow-auth-card w-full max-w-md border-2 border-black bg-white p-5 shadow-brutal space-y-4 sm:p-8 sm:space-y-5">
       <h1 className="text-3xl font-black">TASKFLOW</h1>
       <h2 className="text-xl font-bold">{signup ? 'Create your account' : 'Sign in'}</h2>
       {(error || notice) && <p role="alert" className="text-red-700">{error || notice}</p>}
@@ -165,7 +166,7 @@ function LoginForm({ notice, onSuccess }: { notice: string; onSuccess: (user: Us
       {signup && <><label className="block font-bold">Confirm password
         <input className={inputStyle} type="password" autoComplete="new-password" required minLength={12} maxLength={72} value={confirmation} onChange={e => setConfirmation(e.target.value)} />
       </label><p className="text-xs">Use at least 12 characters. Keep your password safe: email recovery is not available.</p></>}
-      <button disabled={busy} className="w-full p-3 bg-orange-500 border-2 border-black font-bold disabled:opacity-50">{busy ? 'Please wait…' : signup ? 'Create account' : 'Sign in'}</button>
+      <button disabled={busy} className="motion-press w-full p-3 bg-orange-500 border-2 border-black font-bold disabled:opacity-50 disabled:transform-none">{busy ? 'Please wait…' : signup ? 'Create account' : 'Sign in'}</button>
       <button type="button" disabled={busy} onClick={() => { setSignup(!signup); setError(''); setPassword(''); setConfirmation(''); }} className="underline">
         {signup ? 'Already have an account? Sign in' : 'New here? Create an account'}
       </button>

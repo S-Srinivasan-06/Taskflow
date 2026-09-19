@@ -181,3 +181,97 @@
     line-height: 1.5;
   }
 }
+
+/* Taskflow visual states: small, reusable motion with a static fallback. */
+.taskflow-wait-page {
+  background-color: #f5f5f4;
+  background-image: radial-gradient(ellipse at 50% 38%, #fff7ed 0%, #f5f5f4 60%, #e7e5e4 100%);
+}
+.dark .taskflow-wait-page {
+  background-color: #121316;
+  background-image: radial-gradient(ellipse at 50% 38%, rgb(249 115 22 / 0.14) 0%, #18191d 58%, #121316 100%);
+}
+.taskflow-auth-page {
+  background-color: #f5f5f4;
+  background-image: radial-gradient(circle at 15% 20%, rgb(249 115 22 / 0.1), transparent 40%), radial-gradient(circle at 85% 80%, rgb(65 105 225 / 0.08), transparent 40%);
+}
+.dark .taskflow-auth-page {
+  background-color: #121316;
+  background-image: radial-gradient(circle at 15% 20%, rgb(249 115 22 / 0.14), transparent 40%), radial-gradient(circle at 85% 80%, rgb(65 105 225 / 0.12), transparent 40%);
+}
+.taskflow-auth-card { background: rgb(255 255 255 / 0.92); box-shadow: 8px 8px 0 #000; }
+.dark .taskflow-auth-card { border-color: #52525b; background: rgb(32 33 38 / 0.94); box-shadow: 8px 8px 0 #f97316; }
+
+.task-loader { display: flex; flex-direction: column; align-items: center; gap: 1.25rem; color: #18181b; text-align: center; }
+.dark .task-loader { color: #f4f4f5; }
+.cube-scene { --cube-size: 6rem; --cube-half: 3rem; position: relative; width: var(--cube-size); height: var(--cube-size); margin: 0 auto; perspective: 700px; }
+.cube-scene.small { --cube-size: 3.5rem; --cube-half: 1.75rem; }
+.cube-bob { position: relative; width: 100%; height: 100%; }
+.task-cube, .cube { position: relative; width: var(--cube-size); height: var(--cube-size); margin: 0 auto; transform: rotateX(-18deg); transform-style: preserve-3d; }
+.cube-face, .cube__face { position: absolute; display: flex; align-items: center; justify-content: center; width: var(--cube-size); height: var(--cube-size); border: 2.5px solid #0a0a0a; background: linear-gradient(140deg, #ffedd5, #fed7aa); }
+.cube-face--front, .cube__face--front { transform: translateZ(var(--cube-half)); background: linear-gradient(140deg, #fff7ed, #fed7aa); }
+.cube-face--back, .cube__face--back { transform: rotateY(180deg) translateZ(var(--cube-half)); background: linear-gradient(140deg, #fdba74, #f97316); }
+.cube-face--right, .cube__face--right { transform: rotateY(90deg) translateZ(var(--cube-half)); background: linear-gradient(140deg, #fed7aa, #fb923c); }
+.cube-face--left, .cube__face--left { transform: rotateY(-90deg) translateZ(var(--cube-half)); background: linear-gradient(140deg, #ffe4c7, #fdba74); }
+.cube-face--top, .cube__face--top { transform: rotateX(90deg) translateZ(var(--cube-half)); background: linear-gradient(140deg, #fff7ed, #ffedd5); }
+.cube-face--bottom, .cube__face--bottom { transform: rotateX(-90deg) translateZ(var(--cube-half)); background: #fb923c; }
+.cube-orbits { position: absolute; inset: 0; pointer-events: none; }
+.orbit-dot { position: absolute; top: 50%; left: 50%; width: 0.55rem; height: 0.55rem; margin: -0.275rem; border-radius: 999px; box-shadow: 0 0 8px 1px currentColor; }
+.orbit-dot--one, .orbit-dot.o1 { color: #f97316; background: #f97316; }
+.orbit-dot--two, .orbit-dot.o2 { color: #4169e1; background: #4169e1; }
+.orbit-dot--three, .orbit-dot.o3 { color: #facc15; background: #facc15; }
+.cube-shadow { width: 4rem; height: 1rem; margin: 0.35rem auto 0; border-radius: 50%; background: #0a0a0a; opacity: 0.22; filter: blur(3px); }
+.cube-shadow.small { width: 2.5rem; height: 0.625rem; }
+.task-loader__label { font: 800 0.8125rem/1.4 'JetBrains Mono', ui-monospace, monospace; letter-spacing: 0.14em; text-transform: uppercase; }
+.loading-dots span { display: inline-block; opacity: 1; }
+.loading-dots span + span { margin-left: 0.08em; }
+.startup-status-dot { width: 0.5rem; height: 0.5rem; border: 1px solid currentColor; background: #f97316; }
+
+.skeleton-card { position: relative; overflow: hidden; isolation: isolate; }
+.skeleton-line { background: rgb(120 113 108 / 0.28); }
+.dark .skeleton-line { background: rgb(212 212 216 / 0.18); }
+.skeleton-card::after { position: absolute; inset: 0; z-index: 1; content: ''; background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.55) 45%, transparent 70%); transform: translateX(-100%); pointer-events: none; }
+.dark .skeleton-card::after { background: linear-gradient(100deg, transparent 20%, rgb(249 115 22 / 0.26) 45%, transparent 70%); }
+.motion-press { transition: transform 140ms ease, box-shadow 140ms ease; }
+.motion-press:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 currentColor; }
+.ui-popover, .task-card-enter, .state-enter, .taskflow-enter { opacity: 1; transform: none; }
+.task-check--done { transform-origin: center; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .cube-bob { animation: cube-bob 3.2s ease-in-out infinite; }
+  .task-cube, .cube { animation: cube-spin 6.4s linear infinite; }
+  .cube-scene.small .cube-bob { animation-duration: 1.6s; }
+  .cube-scene.small .task-cube, .cube-scene.small .cube { animation-duration: 2.4s; }
+  .orbit-dot--one, .orbit-dot.o1 { animation: orbit-one 4.6s linear infinite; }
+  .orbit-dot--two, .orbit-dot.o2 { animation: orbit-two 5.6s linear infinite reverse; }
+  .orbit-dot--three, .orbit-dot.o3 { animation: orbit-three 6.6s linear infinite; }
+  .cube-shadow { animation: shadow-pulse 3.2s ease-in-out infinite; }
+  .cube-shadow.small { animation-duration: 1.6s; }
+  .loading-dots span { opacity: 0; animation: dot-fade 1.4s ease-in-out infinite; }
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+  .startup-status-dot { animation: status-dot 1.2s steps(2, end) infinite; }
+  .startup-status-dot:nth-child(2) { animation-delay: 0.2s; }
+  .startup-status-dot:nth-child(3) { animation-delay: 0.4s; }
+  .skeleton-card::after { animation: shimmer 1.7s ease-in-out infinite; }
+  .ui-popover { animation: ui-popover-in 160ms ease-out both; }
+  .task-card-enter, .state-enter, .taskflow-enter { animation: state-enter 240ms ease-out both; }
+  .task-check--done { animation: task-check-pop 260ms ease-out both; }
+}
+@keyframes cube-spin { from { transform: rotateX(-18deg) rotateY(0deg); } to { transform: rotateX(-18deg) rotateY(360deg); } }
+@keyframes cube-bob { 0%, 100% { transform: translateY(-0.5rem); } 50% { transform: translateY(0.5rem); } }
+@keyframes orbit-one { 0% { transform: translate(4.4rem, 0) scale(0.6); opacity: 0.5; } 25% { transform: translate(0, 1.1rem) scale(1); opacity: 1; } 50% { transform: translate(-4.4rem, 0) scale(0.6); opacity: 0.5; } 75% { transform: translate(0, -1.1rem) scale(1); opacity: 1; } 100% { transform: translate(4.4rem, 0) scale(0.6); opacity: 0.5; } }
+@keyframes orbit-two { 0% { transform: translate(0, 3.25rem) scale(0.5); opacity: 0.4; } 25% { transform: translate(3.25rem, 0) scale(1); opacity: 1; } 50% { transform: translate(0, -3.25rem) scale(0.5); opacity: 0.4; } 75% { transform: translate(-3.25rem, 0) scale(1); opacity: 1; } 100% { transform: translate(0, 3.25rem) scale(0.5); opacity: 0.4; } }
+@keyframes orbit-three { 0% { transform: translate(-3.75rem, 0.625rem) scale(0.7); opacity: 0.6; } 50% { transform: translate(3.75rem, -0.625rem) scale(1); opacity: 1; } 100% { transform: translate(-3.75rem, 0.625rem) scale(0.7); opacity: 0.6; } }
+@keyframes shadow-pulse { 0%, 100% { transform: scale(1); opacity: 0.22; } 50% { transform: scale(0.62); opacity: 0.1; } }
+@keyframes dot-fade { 0%, 80%, 100% { opacity: 0; } 40% { opacity: 1; } }
+@keyframes status-dot { 50% { opacity: 0.25; transform: translateY(-2px); } }
+@keyframes shimmer { to { transform: translateX(100%); } }
+@keyframes ui-popover-in { from { opacity: 0; transform: translateY(-0.25rem) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes state-enter { from { opacity: 0; transform: translateY(0.35rem); } to { opacity: 1; transform: none; } }
+@keyframes task-check-pop { 0% { transform: scale(0.7); } 70% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .loading-dots span:not(:first-child) { display: none; }
+  .skeleton-card::after { display: none; }
+  .motion-press { transition: none; }
+}
