@@ -4,6 +4,7 @@ export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 export const REQUEST_TIMEOUT_MS = 15_000;
+export const STARTUP_TIMEOUT_MS = 58_000;
 const stalePaths = new Set<string>();
 export function hasStaleReads() { return stalePaths.size > 0; }
 function announce(name: string, detail?: unknown) {
@@ -70,6 +71,9 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   const owner = user?.id;
   const controller = new AbortController();
   const method = init.method || 'GET';
+  const timeoutMs = path === '/auth/me' && method === 'GET' && !user
+    ? STARTUP_TIMEOUT_MS
+    : REQUEST_TIMEOUT_MS;
   const cacheable = method === 'GET' && path.startsWith('/tasks') && !!owner;
   const mutation = method !== 'GET' && path.startsWith('/tasks') && !!owner;
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -78,7 +82,7 @@ export async function request<T>(path: string, init: RequestInit = {}): Promise<
   pending.add(controller);
   const abort = () => controller.abort();
   let timedOut = false;
-  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
   init.signal?.addEventListener('abort', abort, { once: true });
   try {
     if (init.signal?.aborted) controller.abort();

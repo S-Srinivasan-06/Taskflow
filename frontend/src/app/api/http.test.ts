@@ -1,12 +1,31 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { authApi, request, setApiUser } from './http';
+import { authApi, request, REQUEST_TIMEOUT_MS, setApiUser, STARTUP_TIMEOUT_MS } from './http';
 
 describe('HTTP request coordination', () => {
   afterEach(() => {
     setApiUser(null);
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
+  it('keeps the initial session request alive long enough to wake Render', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const pending = authApi.me();
+    const rejection = expect(pending).rejects.toMatchObject({ status: 504 });
+    await vi.advanceTimersByTimeAsync(REQUEST_TIMEOUT_MS + 1);
+
+    const signal = fetchMock.mock.calls[0]?.[1]?.signal;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(signal?.aborted).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(STARTUP_TIMEOUT_MS - REQUEST_TIMEOUT_MS);
+    await rejection;
+  });
   it('shares one CSRF fetch across concurrent mutations', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       const url = String(input);
