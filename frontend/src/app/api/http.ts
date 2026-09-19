@@ -4,7 +4,7 @@ export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 export const REQUEST_TIMEOUT_MS = 15_000;
-export const STARTUP_TIMEOUT_MS = 58_000;
+export const STARTUP_TIMEOUT_MS = 120_000;
 const stalePaths = new Set<string>();
 export function hasStaleReads() { return stalePaths.size > 0; }
 function announce(name: string, detail?: unknown) {
