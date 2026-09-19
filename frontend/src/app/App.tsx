@@ -15,7 +15,12 @@ import { LocalPreferences, validPreferences } from './cache/preferences';
 
 export default function App({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [saved] = useState(() => loadLocalPreferences(user.id, validPreferences));
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768;
+    }
+    return true;
+  });
   const [stale, setStale] = useState(hasStaleReads);
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -108,8 +113,8 @@ export default function App({ user, onLogout }: { user: User; onLogout: () => vo
   return (
     <div className="h-dvh flex flex-col bg-stone-100 dark:bg-[#121316] text-black dark:text-[#f5f5f4] overflow-hidden">
       <Topbar
-        sidebarOpen={sidebarOpen}
-        onToggleSidebar={() => setSidebarOpen(open => !open)}
+        sidebarOpen={calendarOpen}
+        onToggleSidebar={() => setCalendarOpen(open => !open)}
         onNewTask={() => editor.open()}
         timezone={timezone}
         setTimezone={setTimezone}
@@ -124,14 +129,14 @@ export default function App({ user, onLogout }: { user: User; onLogout: () => vo
         <button onClick={() => void queryClient.invalidateQueries()} className="ml-3 underline font-bold">Reconnect</button>
       </div>}
       <div className="mx-auto flex min-h-0 w-full max-w-[1920px] flex-1 flex-col overflow-hidden md:flex-row 2xl:border-x-2 2xl:border-black 2xl:dark:border-zinc-700">
-        <div id="taskflow-sidebar" className={`${sidebarOpen ? 'flex' : 'hidden'} md:flex shrink-0 max-h-[45dvh] md:max-h-full overflow-hidden`}>
         <LeftPanel
           calendarMonth={calendarMonth}
           setCalendarMonth={setCalendarMonth}
           selectedDate={selectedDate}
-          setSelectedDate={date => { setSelectedDate(date); setSidebarOpen(false); }}
+          setSelectedDate={setSelectedDate}
+          calendarOpen={calendarOpen}
+          setCalendarOpen={setCalendarOpen}
         />
-        </div>
 
         <RightPanel
           selectedDate={selectedDate}

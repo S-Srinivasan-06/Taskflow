@@ -283,7 +283,25 @@
 .scroll-hide { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
 .scroll-hide::-webkit-scrollbar { display: none; }
 
+/* Vertical text orientation for retracted desktop rail */
+.writing-v {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
 /* Calendar panel collapse/expand */
-.calendar-panel { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 280ms ease, opacity 200ms ease; opacity: 1; }
-.calendar-panel.collapsed { grid-template-rows: 0fr; opacity: 0; pointer-events: none; }
-.calendar-panel > div { overflow: hidden; }
+.calendar-panel {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 250ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease;
+  opacity: 1;
+}
+.calendar-panel.collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
+.calendar-panel > div {
+  overflow: hidden;
+}
+
