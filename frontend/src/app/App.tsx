@@ -130,17 +130,13 @@ export default function App({ user, onLogout }: { user: User; onLogout: () => vo
           setCalendarMonth={setCalendarMonth}
           selectedDate={selectedDate}
           setSelectedDate={date => { setSelectedDate(date); setSidebarOpen(false); }}
-          activeCategory={activeCategory}
-          setActiveCategory={setActiveCategory}
-          customCategories={customCategories}
-          setCustomCategories={setCustomCategories}
-          setQuickFilter={filter => { setQuickFilter(filter); setSelectedDate(null); setSidebarOpen(false); }}
         />
         </div>
 
         <RightPanel
           selectedDate={selectedDate}
           activeCategory={activeCategory}
+          setActiveCategory={setActiveCategory}
           quickFilter={quickFilter}
           setQuickFilter={setQuickFilter}
           searchQuery={searchQuery}
@@ -148,6 +144,8 @@ export default function App({ user, onLogout }: { user: User; onLogout: () => vo
           onEditTask={editor.open}
           onToggleStatus={editor.toggleStatus}
           searchRef={searchRef}
+          customCategories={customCategories}
+          setCustomCategories={setCustomCategories}
         />
       </div>
 

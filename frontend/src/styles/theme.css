@@ -278,3 +278,12 @@
   .skeleton-card::after { display: none; }
   .motion-press { transition: none; }
 }
+
+/* Scrollbar-hiding for horizontal scroll containers (mobile filter pills) */
+.scroll-hide { -ms-overflow-style: none; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.scroll-hide::-webkit-scrollbar { display: none; }
+
+/* Calendar panel collapse/expand */
+.calendar-panel { display: grid; grid-template-rows: 1fr; transition: grid-template-rows 280ms ease, opacity 200ms ease; opacity: 1; }
+.calendar-panel.collapsed { grid-template-rows: 0fr; opacity: 0; pointer-events: none; }
+.calendar-panel > div { overflow: hidden; }
