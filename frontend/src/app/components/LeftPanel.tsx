@@ -79,7 +79,7 @@ export function LeftPanel({
 
   return (
     <aside
-      className="w-full md:w-80 border-r-2 border-black dark:border-zinc-700 bg-stone-50 dark:bg-zinc-950 flex flex-col shrink-0 overflow-y-auto"
+      className="w-full md:w-72 lg:w-80 xl:w-96 border-r-2 border-black dark:border-zinc-700 bg-stone-50 dark:bg-zinc-950 flex flex-col shrink-0 overflow-y-auto"
       style={{ fontFamily: "'JetBrains Mono', monospace" }}
     >
       {/* Month Navigator */}

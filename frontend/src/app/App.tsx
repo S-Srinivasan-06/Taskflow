@@ -123,7 +123,7 @@ export default function App({ user, onLogout }: { user: User; onLogout: () => vo
         Showing saved data. It may be out of date.
         <button onClick={() => void queryClient.invalidateQueries()} className="ml-3 underline font-bold">Reconnect</button>
       </div>}
-      <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
+      <div className="mx-auto flex min-h-0 w-full max-w-[1920px] flex-1 flex-col overflow-hidden md:flex-row 2xl:border-x-2 2xl:border-black 2xl:dark:border-zinc-700">
         <div id="taskflow-sidebar" className={`${sidebarOpen ? 'flex' : 'hidden'} md:flex shrink-0 max-h-[45dvh] md:max-h-full overflow-hidden`}>
         <LeftPanel
           calendarMonth={calendarMonth}

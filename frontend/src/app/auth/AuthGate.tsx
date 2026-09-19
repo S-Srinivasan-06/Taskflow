@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { authApi, setApiUser, apiUser, User, ApiError, API_ROOT, invalidateTaskCache } from '../api/http';
 import { clearLocalCache, maintainLocalCache } from '../cache/localCache';
 import { lazy, Suspense } from 'react';
+import { StartupScreen } from '../components/StartupScreen';
 const App = lazy(() => import('../App'));
 
 export default function AuthGate() {
@@ -102,10 +103,11 @@ export default function AuthGate() {
       setNotice('Signed out locally, but the server session could not be ended. Reconnect and sign out again.');
     }
   }
-  if (loading || unavailable) return <main className="min-h-screen grid place-content-center gap-4 p-6 text-center">
-    <p role="status">{notice || 'Checking your session...'}</p>
-    {unavailable && <button className="border-2 p-3 font-bold" onClick={() => setRestoreAttempt(n => n + 1)}>Retry connection</button>}
-  </main>;
+  if (loading || unavailable) return <StartupScreen
+    message={notice}
+    unavailable={unavailable}
+    onRetry={() => setRestoreAttempt(n => n + 1)}
+  />;
   if (!user) return <LoginForm notice={notice} onSuccess={next => {
     reset(); setApiUser(next); setUser(next); setNotice(''); notifyTabs('login');
   }} />;
@@ -138,8 +140,8 @@ function LoginForm({ notice, onSuccess }: { notice: string; onSuccess: (user: Us
     finally { setBusy(false); }
   }
   const inputStyle = "w-full border-2 border-black p-3 bg-white text-black mt-1";
-  return <main className="min-h-screen bg-stone-100 text-black grid place-items-center p-6">
-    <form onSubmit={submit} className="w-full max-w-md border-2 border-black bg-white p-8 shadow-brutal space-y-5">
+  return <main className="min-h-dvh bg-stone-100 text-black grid place-items-center p-3 sm:p-6">
+    <form onSubmit={submit} className="w-full max-w-md border-2 border-black bg-white p-5 shadow-brutal space-y-4 sm:p-8 sm:space-y-5">
       <h1 className="text-3xl font-black">TASKFLOW</h1>
       <h2 className="text-xl font-bold">{signup ? 'Create your account' : 'Sign in'}</h2>
       {(error || notice) && <p role="alert" className="text-red-700">{error || notice}</p>}

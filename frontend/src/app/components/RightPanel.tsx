@@ -66,7 +66,7 @@ export function RightPanel({
       style={{ fontFamily: "'JetBrains Mono', monospace" }}
     >
       {/* Toolbar */}
-      <div className="sticky top-0 z-20 p-4 border-b-2 border-black dark:border-[#4169E1] bg-white dark:bg-black shrink-0 shadow-sm">
+      <div className="sticky top-0 z-20 border-b-2 p-3 sm:p-4 lg:p-6 border-black dark:border-[#4169E1] bg-white dark:bg-black shrink-0 shadow-sm">
         <div className="flex items-center gap-4 mb-4">
           <div className="relative flex-1 max-w-md">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500" strokeWidth={3} />
@@ -93,13 +93,13 @@ export function RightPanel({
         </div>
 
         {/* Quick Filters */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
           {quickFilters.map(f => (
             <button
               key={f}
               onClick={() => setQuickFilter(f)}
               className={[
-                'px-3 py-1 border-2 border-black dark:border-[#4169E1] text-[10px] font-bold uppercase transition-all',
+                'shrink-0 px-3 py-1 border-2 border-black dark:border-[#4169E1] text-[10px] font-bold uppercase transition-all',
                 quickFilter === f
                   ? 'bg-black dark:bg-[#4169E1] text-white shadow-none'
                   : 'bg-white dark:bg-black shadow-brutal-sm dark:shadow-[#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal-hover dark:hover:shadow-[4px_4px_0px_0px_#ffffff]',
@@ -109,7 +109,7 @@ export function RightPanel({
             </button>
           ))}
           {totalCount > 0 && (
-            <span className="px-3 py-1 text-[10px] font-bold text-stone-400 uppercase self-center">
+            <span className="shrink-0 px-3 py-1 text-[10px] font-bold text-stone-400 uppercase self-center">
               {totalCount} task{totalCount !== 1 ? 's' : ''}
             </span>
           )}
@@ -117,7 +117,7 @@ export function RightPanel({
       </div>
 
       {/* Task List */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div ref={scrollContainerRef} className="mx-auto w-full max-w-6xl flex-1 space-y-3 overflow-y-auto p-3 sm:p-4 lg:p-6 xl:px-10">
         {(pastTasks.length === 0 && futureTasks.length === 0) ? (
           <div className="flex flex-col items-center justify-center h-full select-none">
             <div
