@@ -2,7 +2,7 @@
 
 Updated: 2026-09-16 (Asia/Calcutta)
 
-This is the single durable handoff for the next engineer or model. It replaces all previous problem reports and historical audit text. Read it completely before changing code, infrastructure, authentication, database schema, or deployment settings.
+This historical handoff records the state on the date above, including unresolved operational follow-ups. See README.md and frontend/README.md for the current code layout and validation commands.
 
 ## 1. Current status
 
@@ -65,7 +65,7 @@ Nginx is not used in Vercel production. It is used only in the local Docker fron
 Technology stack:
 
 - Backend: Java 21, Spring Boot 3.5.14, Spring MVC, Spring Security, Spring Data JPA, Jakarta Validation, PostgreSQL, HikariCP, Maven.
-- Frontend: React 18.3.1, TypeScript, Vite 6.3.5, TanStack React Query 5, Tailwind CSS 4, Radix/shadcn-style components, Vitest.
+- Frontend: React 18.3.1, TypeScript, Vite 6.3.5, TanStack React Query 5, Tailwind CSS 4, custom React components, Vitest. No Radix/shadcn-generated components remain.
 - Testing: JUnit/Spring Boot Test/Testcontainers PostgreSQL and Vitest/fake-indexeddb.
 - Production: Vercel + Render free Docker web service + Supabase PostgreSQL.
 - Local: Docker Compose PostgreSQL + migration job + backend + Nginx frontend.
@@ -354,6 +354,7 @@ Production contains additional user data beyond this demo. Never assume the data
 - Consistent user-ID validation.
 - Vercel nested route, compressed response, CORS, and stale authentication retry fixes.
 - Docker Compose migration/health sequencing and GitHub CI.
+- Frontend dependency trimming and removal of unused generated UI components.
 
 Important commits:
 
@@ -395,7 +396,7 @@ P2 improvements:
 - Improve stale-CSRF versus generic 403 messaging.
 - Add reduced-motion styling.
 - Clean duplicate timezone option keys and refine the extended calendar grid.
-- Continue bundle/dependency trimming; many generated UI components are unused.
+- Historical follow-up: dependency trimming and removal of unused generated UI components are complete; no Radix/shadcn-generated components remain.
 - Decide on public indexing and fix `frontend/index.html` metadata/robots settings.
 - Design password recovery before onboarding users who cannot tolerate permanent account loss.
 

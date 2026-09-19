@@ -69,8 +69,9 @@ Features both local and custom time zones!
 ### Frontend
 - **React 18** + **TypeScript**
 - **Vite** for lightning-fast dev server and builds
-- **Tailwind CSS** for utility-first styling
-- **Radix UI** for accessible component primitives
+- **Tailwind CSS 4** for utility-first styling
+- **TanStack Query**, **lucide-react**, **Motion**, **next-themes**, and **Sonner** for data fetching, icons, animation, themes, and notifications
+- **Vitest** for frontend tests
 
 ### Infrastructure
 - **Docker** + **Docker Compose** for containerised deployment, and containerised testing
@@ -108,20 +109,24 @@ by `GET /api/v1/auth/csrf`.
 
 ```text
 Taskflow/
-├── docker-compose.yml          # Full-stack orchestration
-├── Dockerfile                  # Container image definition
-├── .env.example                # Environment variable template
-├── pom.xml                     # Maven build config
-├── frontend/                   # React + TypeScript app
+├── docker-compose.yml            # Full-stack orchestration
+├── Dockerfile                    # Backend container image
+├── .env.example                  # Environment variable template
+├── pom.xml                       # Maven build config
+├── frontend/                     # React + TypeScript Vite app
+│   ├── api/[...path].mjs         # Vercel API proxy
 │   ├── src/
-│   │   ├── api/                # API client connection
-│   │   ├── components/         # UI components
-│   │   └── pages/              # Page views
-│   └── package.json            # Node dependencies
-└── src/                        # Spring Boot application
-    └── main/
-        ├── java/com/taskflow/  # Controllers, Services, Repositories, Models
-        └── resources/          # application.properties
+│   │   ├── app/
+│   │   │   ├── api/              # HTTP and task API clients
+│   │   │   ├── auth/             # Session/authentication gate
+│   │   │   ├── cache/            # Preferences and IndexedDB cache
+│   │   │   ├── components/       # Dashboard and task UI
+│   │   │   └── tasks/            # Task types and feed/editor hooks
+│   │   ├── assets/               # Static assets
+│   │   └── styles/               # Global theme and Tailwind styles
+│   ├── package.json              # Frontend scripts and dependencies
+│   └── package-lock.json         # npm lockfile
+└── src/main/java/com/taskflow/   # Spring Boot controllers, services, repositories, and models
 ```
 
 ---
