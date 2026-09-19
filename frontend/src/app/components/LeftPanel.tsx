@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { Calendar, ChevronLeft, ChevronRight, ChevronDown, X } from 'lucide-react';
+import { motion, useReducedMotion } from 'motion/react';
 import {
   startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays,
   isSameMonth, isSameDay, format, addMonths, subMonths, setMonth,
@@ -20,16 +21,35 @@ export function LeftPanel({
   calendarMonth, setCalendarMonth, selectedDate, setSelectedDate,
   calendarOpen, setCalendarOpen,
 }: Props) {
+  const reduced = useReducedMotion() === true;
   const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [width, setWidth] = useState(280);
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
 
+  const drag = useRef<{ x: number; width: number } | null>(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const onPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (!drag.current) return;
+    const newWidth = Math.max(220, Math.min(380, drag.current.width + event.clientX - drag.current.x));
+    setWidth(newWidth);
+  };
+
+  // Exactly bounds the calendar to the full weeks of this month (no extra 7th row)
   const calendarDays = useMemo(() => {
     const start = startOfMonth(calendarMonth);
     const end = endOfMonth(calendarMonth);
     const calStart = startOfWeek(start, { weekStartsOn: 1 });
-    const monthCalEnd = endOfWeek(end, { weekStartsOn: 1 });
-    const calEnd = addDays(monthCalEnd, 7); // Next week of next month
+    const calEnd = endOfWeek(end, { weekStartsOn: 1 });
 
-    const arr = [];
+    const arr: Date[] = [];
     let curr = calStart;
     while (curr <= calEnd) {
       arr.push(curr);
@@ -40,46 +60,50 @@ export function LeftPanel({
 
   const { data: monthTasks, isError: calendarError, refetch: refetchCalendar } = useQuery({
     queryKey: ['calendar', calendarMonth.getFullYear(), calendarMonth.getMonth() + 1],
-    queryFn: () => taskApi.getByMonth(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1)
+    queryFn: () => taskApi.getByMonth(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1),
   });
   
   const activeTasks = monthTasks || [];
 
+  const actualWidth = calendarOpen ? width : 56;
+
   return (
-    <aside
+    <motion.aside
       id="taskflow-sidebar"
+      animate={{
+        width: isDesktop ? actualWidth : '100%',
+      }}
+      transition={{
+        duration: reduced ? 0 : 0.24,
+        ease: [0.4, 0, 0.2, 1],
+      }}
       className={[
-        'border-black dark:border-zinc-700 bg-stone-50 dark:bg-zinc-950 flex flex-col shrink-0 select-none overflow-hidden transition-[width] duration-300 ease-in-out',
-        // Desktop: height full, border-r-2, width transitions between w-72 (or w-80) and w-12
-        'md:h-full md:border-r-2 md:border-b-0',
-        calendarOpen ? 'md:w-72 lg:w-80' : 'md:w-12',
-        // Mobile: full width, border-b-2
-        'w-full border-b-2',
+        'relative border-black dark:border-zinc-700 bg-stone-50 dark:bg-zinc-950 flex flex-col shrink-0 select-none',
+        'md:h-full md:border-r-2 md:border-b-0 border-b-2',
+        isDesktop ? 'overflow-visible' : 'overflow-hidden',
       ].join(' ')}
       style={{ fontFamily: "'JetBrains Mono', monospace" }}
     >
       {/* ========================================================
-          DESKTOP: RETRACTED RAIL (Visible only on md+ when closed)
+          DESKTOP: RETRACTED RAIL (width 56px when closed)
          ======================================================== */}
-      {!calendarOpen && (
+      {isDesktop && !calendarOpen && (
         <div
           onClick={() => setCalendarOpen(true)}
-          className="hidden md:flex flex-col items-center justify-between h-full w-12 py-3 cursor-pointer bg-stone-100 dark:bg-zinc-950 hover:bg-stone-200 dark:hover:bg-zinc-900 transition-colors group"
+          className="flex flex-col items-center justify-between h-full w-full py-3 cursor-pointer bg-stone-100 dark:bg-zinc-950 hover:bg-stone-200 dark:hover:bg-zinc-900 transition-colors group overflow-hidden"
           title="Expand calendar"
         >
-          <div className="flex flex-col items-center gap-2">
+          <div className="flex flex-col items-center gap-2.5">
             <button
               type="button"
-              className="w-8 h-8 flex items-center justify-center border-2 border-black dark:border-[#4169E1] bg-white dark:bg-black text-black dark:text-white shadow-brutal-sm dark:shadow-[#ffffff] group-hover:bg-orange-500 group-hover:text-white transition-colors"
-              title="Expand calendar"
+              aria-label="Expand sidebar"
+              onClick={(e) => { e.stopPropagation(); setCalendarOpen(true); }}
+              className="grid size-7 place-items-center border-2 border-black dark:border-[#4169E1] bg-white dark:bg-black text-black dark:text-white shadow-brutal-sm dark:shadow-[#ffffff] group-hover:bg-orange-500 group-hover:text-white transition-colors text-xs font-black"
+              title="Expand calendar (→)"
             >
-              <Calendar size={15} strokeWidth={2.5} />
+              →
             </button>
-            <ChevronRight
-              size={13}
-              strokeWidth={3}
-              className="text-stone-400 group-hover:text-black dark:group-hover:text-white group-hover:translate-x-0.5 transition-all"
-            />
+            <Calendar size={15} strokeWidth={2.5} className="text-stone-500 group-hover:text-orange-500 transition-colors mt-1" />
           </div>
 
           {selectedDate && (
@@ -93,52 +117,52 @@ export function LeftPanel({
 
           <div className="flex-1 flex items-center justify-center py-4">
             <span
-              className="writing-v text-[11px] font-bold tracking-[0.25em] uppercase text-stone-500 dark:text-zinc-400 group-hover:text-orange-500 transition-colors"
+              className="writing-v text-[11px] font-black tracking-[0.25em] uppercase text-stone-500 dark:text-zinc-400 group-hover:text-orange-500 transition-colors"
             >
               CALENDAR
             </span>
           </div>
 
           <div className="text-[10px] text-stone-400 group-hover:text-black dark:group-hover:text-white font-bold transition-colors">
-            ▶
+            →
           </div>
         </div>
       )}
 
       {/* ========================================================
-          DESKTOP: EXPANDED FULL PANEL (Visible only on md+ when open)
+          DESKTOP: EXPANDED PANEL (width 220px-380px resizable)
          ======================================================== */}
-      {calendarOpen && (
-        <div className="hidden md:flex flex-col h-full w-full">
-          {/* Header with Retract button */}
-          <div className="flex items-center justify-between px-3.5 py-2.5 border-b-2 border-black dark:border-[#4169E1] bg-black dark:bg-[#4169E1] text-white">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider">
-              <Calendar size={15} strokeWidth={2.5} />
-              <span>Calendar</span>
+      {isDesktop && calendarOpen && (
+        <div className="flex flex-col h-full w-full overflow-hidden">
+          {/* Header with Collapse Arrow button */}
+          <div className="flex items-center justify-between px-3 py-2.5 border-b-2 border-black dark:border-[#4169E1] bg-black dark:bg-[#4169E1] text-white shrink-0">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider truncate">
+              <Calendar size={15} strokeWidth={2.5} className="shrink-0" />
+              <span className="truncate">Calendar</span>
             </div>
             <button
               type="button"
+              aria-label="Collapse sidebar"
               onClick={() => setCalendarOpen(false)}
-              className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider border border-white/40 hover:border-white hover:bg-white/20 px-2 py-0.5 transition-colors"
-              title="Retract calendar to left"
+              className="grid size-6 place-items-center border border-white/60 hover:border-white bg-white/10 hover:bg-white hover:text-black transition-colors text-xs font-black shrink-0"
+              title="Retract calendar (←)"
             >
-              <span>Retract</span>
-              <ChevronLeft size={13} strokeWidth={3} />
+              ←
             </button>
           </div>
 
-          {/* Body */}
-          <div className="flex-1 flex flex-col overflow-y-auto">
+          {/* Scrollable Content */}
+          <div className="flex-1 flex flex-col overflow-y-auto min-w-[200px]">
             {/* Active Selected Date banner */}
             {selectedDate && (
-              <div className="px-3 py-1.5 bg-yellow-100 dark:bg-yellow-950/40 border-b border-black dark:border-zinc-700 flex items-center justify-between text-xs">
+              <div className="px-3 py-1.5 bg-yellow-100 dark:bg-yellow-950/40 border-b border-black dark:border-zinc-700 flex items-center justify-between text-xs shrink-0">
                 <span className="font-bold text-[11px] truncate">
                   📅 {format(selectedDate, 'EEE, MMM d')}
                 </span>
                 <button
                   type="button"
                   onClick={() => setSelectedDate(null)}
-                  className="text-[10px] font-bold underline hover:text-red-600 transition-colors ml-2"
+                  className="text-[10px] font-bold underline hover:text-red-600 transition-colors ml-2 shrink-0"
                 >
                   Clear
                 </button>
@@ -146,7 +170,7 @@ export function LeftPanel({
             )}
 
             {/* Month Navigator */}
-            <div className="p-3 border-b-2 border-black dark:border-[#4169E1] flex items-center justify-between">
+            <div className="p-3 border-b-2 border-black dark:border-[#4169E1] flex items-center justify-between shrink-0">
               <button
                 type="button"
                 onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))}
@@ -160,7 +184,7 @@ export function LeftPanel({
                 <button
                   type="button"
                   onClick={() => setShowMonthPicker(!showMonthPicker)}
-                  className="text-xs font-bold uppercase tracking-wider hover:text-orange-600 transition-colors"
+                  className="text-xs font-black uppercase tracking-wider hover:text-orange-600 transition-colors"
                 >
                   {format(calendarMonth, 'MMMM yyyy')}
                 </button>
@@ -218,11 +242,11 @@ export function LeftPanel({
               </button>
             </div>
 
-            {/* Calendar Grid */}
-            <div className="p-3 border-b-2 border-black dark:border-[#4169E1] bg-stone-200 dark:bg-[#333333] transition-colors">
+            {/* Calendar Grid (Strict 5-week or 6-week layout, consistent boxes) */}
+            <div className="p-3 border-b-2 border-black dark:border-[#4169E1] bg-stone-200 dark:bg-[#333333] transition-colors shrink-0">
               <div className="grid grid-cols-7 gap-1 mb-2">
                 {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
-                  <div key={d} className="text-center text-[10px] font-bold bg-black dark:bg-[#4169E1] text-orange-500 py-1 uppercase transition-colors">{d}</div>
+                  <div key={d} className="text-center text-[10px] font-black bg-black dark:bg-[#4169E1] text-orange-500 py-1 uppercase transition-colors">{d}</div>
                 ))}
               </div>
               <div className="grid grid-cols-7 gap-1">
@@ -231,7 +255,6 @@ export function LeftPanel({
                   const isSelected = selectedDate && isSameDay(day, selectedDate);
                   const isTodayDate = isSameDay(day, new Date());
                   const hasTasks = activeTasks.some(entry => entry.remaining > 0 && entry.date === format(day, 'yyyy-MM-dd'));
-                  const isHighlighted = isSelected || isTodayDate;
 
                   return (
                     <button
@@ -240,23 +263,21 @@ export function LeftPanel({
                       disabled={!isCurrentMonth}
                       onClick={() => setSelectedDate(isSelected ? null : day)}
                       className={[
-                        'aspect-square border-2 flex flex-col items-center justify-center relative transition-all text-xs font-light',
-                        isCurrentMonth && !isHighlighted
-                          ? 'border-black dark:border-[#4169E1] bg-white dark:bg-black shadow-[2px_2px_0px_0px_#000] dark:shadow-[#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0px_0px_#000] dark:hover:shadow-[4px_4px_0px_0px_#ffffff]'
-                          : '',
-                        !isCurrentMonth ? 'border-transparent bg-transparent text-stone-500 dark:text-stone-400 cursor-default' : '',
-                        isSelected && isTodayDate
-                          ? 'border-black dark:border-[#4169E1] bg-orange-500 text-white shadow-[2px_2px_0px_0px_#000] dark:shadow-[#ffffff] translate-x-0 translate-y-0'
-                          : isSelected
-                            ? 'border-black dark:border-[#4169E1] bg-yellow-400 text-black shadow-[2px_2px_0px_0px_#000] dark:shadow-[#ffffff] translate-x-0 translate-y-0'
-                            : isTodayDate
-                              ? 'border-black dark:border-[#4169E1] bg-orange-500 text-white shadow-[2px_2px_0px_0px_#000] dark:shadow-[#ffffff] translate-x-0 translate-y-0'
-                              : '',
+                        'aspect-square flex flex-col items-center justify-center relative text-xs transition-all font-mono',
+                        isCurrentMonth
+                          ? isSelected && isTodayDate
+                            ? 'border-2 border-black dark:border-[#4169E1] bg-orange-500 text-white font-bold shadow-[2px_2px_0px_0px_#000] dark:shadow-[#ffffff]'
+                            : isSelected
+                              ? 'border-2 border-black dark:border-[#4169E1] bg-yellow-400 text-black font-bold shadow-[2px_2px_0px_0px_#000] dark:shadow-[#ffffff]'
+                              : isTodayDate
+                                ? 'border-2 border-black dark:border-[#4169E1] bg-orange-500 text-white font-bold shadow-[2px_2px_0px_0px_#000] dark:shadow-[#ffffff]'
+                                : 'border-2 border-black dark:border-[#4169E1] bg-white dark:bg-black text-black dark:text-zinc-100 shadow-[2px_2px_0px_0px_#000] dark:shadow-[#ffffff] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_0px_#000] dark:hover:shadow-[3px_3px_0px_0px_#ffffff]'
+                          : 'border border-dashed border-stone-300 dark:border-zinc-800 text-stone-300 dark:text-zinc-700 bg-stone-100/40 dark:bg-zinc-900/30 cursor-default select-none',
                       ].join(' ')}
                     >
                       {format(day, 'd')}
                       {hasTasks && isCurrentMonth && (
-                        <div className={`absolute bottom-1 w-1.5 h-1.5 border border-black ${isHighlighted ? 'bg-white' : 'bg-orange-500'}`} />
+                        <div className={`absolute bottom-0.5 sm:bottom-1 w-1.5 h-1.5 border border-black ${isSelected || isTodayDate ? 'bg-white' : 'bg-orange-500'}`} />
                       )}
                     </button>
                   );
@@ -265,67 +286,98 @@ export function LeftPanel({
             </div>
 
             {calendarError && (
-              <div role="alert" className="p-3 text-xs bg-red-100 dark:bg-red-950">
+              <div role="alert" className="p-3 text-xs bg-red-100 dark:bg-red-950 shrink-0">
                 Calendar unavailable. <button type="button" onClick={() => void refetchCalendar()} className="underline font-bold">Retry</button>
               </div>
             )}
 
             {/* Shortcuts hint at bottom */}
-            <div className="mt-auto p-3 border-t-2 border-black dark:border-[#4169E1]">
+            <div className="mt-auto p-3 border-t-2 border-black dark:border-[#4169E1] shrink-0">
               <div className="text-[10px] text-stone-400 tracking-widest mb-1">SHORTCUTS</div>
               <div className="space-y-0.5 text-[10px] text-stone-400">
-                <div>[N] New task · [/] Search · [Esc] Close</div>
+                <div>[N] New · [/] Search · [Esc] Close</div>
               </div>
             </div>
           </div>
+
+          {/* Draggable Resize Handle */}
+          <button
+            type="button"
+            aria-label="Resize calendar sidebar"
+            onPointerDown={(event) => {
+              event.currentTarget.setPointerCapture(event.pointerId);
+              drag.current = { x: event.clientX, width };
+            }}
+            onPointerMove={onPointerMove}
+            onPointerUp={() => { drag.current = null; }}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowRight') setWidth((v) => Math.min(380, v + 16));
+              if (event.key === 'ArrowLeft') setWidth((v) => Math.max(220, v - 16));
+              if (event.key === 'Home') setWidth(220);
+              if (event.key === 'End') setWidth(380);
+            }}
+            className="absolute inset-y-0 -right-1.5 w-3 cursor-col-resize z-30 outline-none hover:bg-orange-500/50 active:bg-orange-500 transition-colors focus-visible:bg-orange-500/50"
+            title="Drag to resize sidebar (or use Left/Right arrows)"
+          />
         </div>
       )}
 
       {/* ========================================================
-          MOBILE: COMPACT BAR + ACCORDION (Visible only on < md)
+          MOBILE: COMPACT ACCORDION (Visible only on < md)
          ======================================================== */}
-      <div className="md:hidden flex flex-col w-full">
-        {/* Slim Toggle Bar (h-10 / 40px) */}
-        <button
-          type="button"
-          onClick={() => setCalendarOpen(open => !open)}
-          className="w-full h-10 px-3 flex items-center justify-between bg-stone-100 dark:bg-zinc-900 text-xs font-bold uppercase tracking-wider transition-colors hover:bg-stone-200 dark:hover:bg-zinc-800"
-        >
-          <div className="flex items-center gap-2">
-            <Calendar size={14} strokeWidth={2.5} className="text-orange-500" />
-            <span>Calendar</span>
-          </div>
+      {!isDesktop && (
+        <div className="flex flex-col w-full">
+          {/* Slim Toggle Bar (h-10 / 40px) */}
+          <button
+            type="button"
+            onClick={() => setCalendarOpen(open => !open)}
+            className="w-full h-10 px-3 flex items-center justify-between bg-stone-100 dark:bg-zinc-900 text-xs font-bold uppercase tracking-wider transition-colors hover:bg-stone-200 dark:hover:bg-zinc-800 shrink-0"
+          >
+            <div className="flex items-center gap-2">
+              <Calendar size={14} strokeWidth={2.5} className="text-orange-500" />
+              <span>Calendar</span>
+            </div>
 
-          <div className="flex items-center gap-2">
-            {selectedDate && (
-              <span
-                onClick={(e) => { e.stopPropagation(); setSelectedDate(null); }}
-                className="bg-orange-500 text-white text-[10px] px-2 py-0.5 font-bold flex items-center gap-1 shadow-sm"
-                title="Clear date filter"
-              >
-                {format(selectedDate, 'MMM d')}
-                <X size={11} strokeWidth={3} />
-              </span>
-            )}
-            <ChevronDown
-              size={15}
-              strokeWidth={3}
-              className={`transition-transform duration-200 ${calendarOpen ? 'rotate-180 text-orange-500' : 'text-stone-500'}`}
-            />
-          </div>
-        </button>
+            <div className="flex items-center gap-2">
+              {selectedDate && (
+                <span
+                  onClick={(e) => { e.stopPropagation(); setSelectedDate(null); }}
+                  className="bg-orange-500 text-white text-[10px] px-2 py-0.5 font-bold flex items-center gap-1 shadow-sm"
+                  title="Clear date filter"
+                >
+                  {format(selectedDate, 'MMM d')}
+                  <X size={11} strokeWidth={3} />
+                </span>
+              )}
+              <ChevronDown
+                size={15}
+                strokeWidth={3}
+                className={`transition-transform duration-200 ${calendarOpen ? 'rotate-180 text-orange-500' : 'text-stone-500'}`}
+              />
+            </div>
+          </button>
 
-        {/* Retractable Calendar Body (retracts from top to bottom) */}
-        <div className={`calendar-panel ${calendarOpen ? '' : 'collapsed'}`}>
-          <div className="bg-stone-50 dark:bg-zinc-950 border-t border-black/10 dark:border-zinc-800">
+          {/* Compact Animated Retractable Calendar Body */}
+          <motion.div
+            initial={false}
+            animate={{
+              height: calendarOpen ? 'auto' : 0,
+              opacity: calendarOpen ? 1 : 0,
+            }}
+            transition={{
+              duration: reduced ? 0 : 0.22,
+              ease: [0.4, 0, 0.2, 1],
+            }}
+            className="overflow-hidden bg-stone-50 dark:bg-zinc-950 border-t border-black/10 dark:border-zinc-800"
+          >
             {/* Compact Month Bar */}
-            <div className="px-3 py-2 flex items-center justify-between border-b border-black/10 dark:border-zinc-800">
+            <div className="px-3 py-1.5 flex items-center justify-between border-b border-black/10 dark:border-zinc-800">
               <button
                 type="button"
                 onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))}
-                className="border border-black dark:border-[#4169E1] w-6 h-6 flex items-center justify-center hover:bg-black hover:text-white dark:hover:bg-[#4169E1]"
+                className="border border-black dark:border-[#4169E1] w-6 h-6 flex items-center justify-center hover:bg-black hover:text-white dark:hover:bg-[#4169E1] text-xs font-bold"
               >
-                <ChevronLeft size={13} strokeWidth={3} />
+                ‹
               </button>
               <span className="text-xs font-bold uppercase tracking-wider">
                 {format(calendarMonth, 'MMMM yyyy')}
@@ -333,17 +385,17 @@ export function LeftPanel({
               <button
                 type="button"
                 onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))}
-                className="border border-black dark:border-[#4169E1] w-6 h-6 flex items-center justify-center hover:bg-black hover:text-white dark:hover:bg-[#4169E1]"
+                className="border border-black dark:border-[#4169E1] w-6 h-6 flex items-center justify-center hover:bg-black hover:text-white dark:hover:bg-[#4169E1] text-xs font-bold"
               >
-                <ChevronRight size={13} strokeWidth={3} />
+                ›
               </button>
             </div>
 
-            {/* Compact Grid */}
-            <div className="p-2.5 bg-stone-200 dark:bg-[#333333]">
-              <div className="grid grid-cols-7 gap-1 mb-1.5">
+            {/* Compact Grid (Exact month bounds, tight height) */}
+            <div className="p-2 bg-stone-200 dark:bg-[#333333]">
+              <div className="grid grid-cols-7 gap-1 mb-1">
                 {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
-                  <div key={d} className="text-center text-[9px] font-bold bg-black dark:bg-[#4169E1] text-orange-500 py-0.5 uppercase">{d}</div>
+                  <div key={d} className="text-center text-[9px] font-black bg-black dark:bg-[#4169E1] text-orange-500 py-0.5 uppercase">{d}</div>
                 ))}
               </div>
               <div className="grid grid-cols-7 gap-1">
@@ -352,7 +404,6 @@ export function LeftPanel({
                   const isSelected = selectedDate && isSameDay(day, selectedDate);
                   const isTodayDate = isSameDay(day, new Date());
                   const hasTasks = activeTasks.some(entry => entry.remaining > 0 && entry.date === format(day, 'yyyy-MM-dd'));
-                  const isHighlighted = isSelected || isTodayDate;
 
                   return (
                     <button
@@ -361,23 +412,23 @@ export function LeftPanel({
                       disabled={!isCurrentMonth}
                       onClick={() => {
                         setSelectedDate(isSelected ? null : day);
-                        // Auto-retract on mobile after selection so user immediately sees filtered tasks!
+                        // Auto-retract on mobile after selection to free screen space immediately!
                         setCalendarOpen(false);
                       }}
                       className={[
-                        'aspect-square border flex flex-col items-center justify-center relative text-[11px] font-medium h-7',
-                        isCurrentMonth && !isHighlighted ? 'border-black dark:border-[#4169E1] bg-white dark:bg-black' : '',
-                        !isCurrentMonth ? 'border-transparent text-stone-400 dark:text-stone-600' : '',
-                        isSelected
-                          ? 'border-black dark:border-[#4169E1] bg-yellow-400 text-black font-bold'
-                          : isTodayDate
-                            ? 'border-black dark:border-[#4169E1] bg-orange-500 text-white font-bold'
-                            : '',
+                        'aspect-square flex flex-col items-center justify-center relative text-[11px] font-mono h-7 sm:h-8',
+                        isCurrentMonth
+                          ? isSelected
+                            ? 'border-2 border-black dark:border-[#4169E1] bg-yellow-400 text-black font-bold'
+                            : isTodayDate
+                              ? 'border-2 border-black dark:border-[#4169E1] bg-orange-500 text-white font-bold'
+                              : 'border-2 border-black dark:border-[#4169E1] bg-white dark:bg-black text-black dark:text-white'
+                          : 'border border-dashed border-stone-300 dark:border-zinc-800 text-stone-300 dark:text-zinc-700 bg-stone-100/40 dark:bg-zinc-900/30 cursor-default select-none',
                       ].join(' ')}
                     >
                       {format(day, 'd')}
                       {hasTasks && isCurrentMonth && (
-                        <div className={`absolute bottom-0.5 w-1 h-1 ${isHighlighted ? 'bg-white' : 'bg-orange-500'}`} />
+                        <div className={`absolute bottom-0.5 w-1 h-1 ${isSelected || isTodayDate ? 'bg-white' : 'bg-orange-500'}`} />
                       )}
                     </button>
                   );
@@ -386,22 +437,22 @@ export function LeftPanel({
             </div>
 
             {selectedDate && (
-              <div className="p-2 border-t border-black/10 dark:border-zinc-800 flex items-center justify-between text-xs">
-                <span className="text-[11px] text-stone-600 dark:text-zinc-400">
-                  Active filter: <strong>{format(selectedDate, 'PPP')}</strong>
+              <div className="px-3 py-1.5 border-t border-black/10 dark:border-zinc-800 flex items-center justify-between text-xs">
+                <span className="text-[10px] text-stone-600 dark:text-zinc-400 truncate">
+                  Filtered: <strong>{format(selectedDate, 'PPP')}</strong>
                 </span>
                 <button
                   type="button"
                   onClick={() => { setSelectedDate(null); setCalendarOpen(false); }}
-                  className="text-xs font-bold text-red-600 underline"
+                  className="text-xs font-bold text-red-600 underline shrink-0 ml-2"
                 >
                   Clear
                 </button>
               </div>
             )}
-          </div>
+          </motion.div>
         </div>
-      </div>
-    </aside>
+      )}
+    </motion.aside>
   );
 }
