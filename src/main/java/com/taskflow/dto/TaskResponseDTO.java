@@ -17,4 +17,4 @@ public record TaskResponseDTO(
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt,
     Long version
-) implements java.io.Serializable {}
+) {}

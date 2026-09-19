@@ -22,7 +22,7 @@ class AuthThrottleTest {
     }
 
     @Test
-    void evictsTheOldestKeyInsteadOfLockingOutNewUsersAtCapacity() {
+    void delegatesNewKeyChecksToTheRateLimitStore() {
         var store = mock(RateLimitStore.class);
         when(store.consume(anyString(), anyInt())).thenReturn(true);
         var throttle = new AuthThrottle(store);

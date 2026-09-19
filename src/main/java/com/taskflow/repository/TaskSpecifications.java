@@ -18,10 +18,6 @@ public class TaskSpecifications {
         return (root, query, cb) -> cb.and(cb.greaterThanOrEqualTo(root.get("dueAt"), start), cb.lessThan(root.get("dueAt"), end));
     }
     public static Specification<Task> withDynamicFilters(String search, String category, String quickFilter,
-            LocalDate date, OffsetDateTime startDate, OffsetDateTime endDate, ZoneId zone) {
-        return withDynamicFilters(search, category, quickFilter, date, startDate, endDate, zone, false);
-    }
-    public static Specification<Task> withDynamicFilters(String search, String category, String quickFilter,
             LocalDate date, OffsetDateTime startDate, OffsetDateTime endDate, ZoneId zone, boolean includeUndated) {
         if (startDate != null && endDate != null && !startDate.isBefore(endDate))
             throw new IllegalArgumentException("Start date must be before end date");

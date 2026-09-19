@@ -32,10 +32,6 @@ public class TaskService {
         return PageRequest.of(pageable.getPageNumber(), Math.min(10, pageable.getPageSize()), sort);
     }
     public Page<TaskResponseDTO> searchTasks(String search, String category, String quickFilter, LocalDate date,
-            OffsetDateTime startDate, OffsetDateTime endDate, Pageable pageable, ZoneId zone) {
-        return searchTasks(search, category, quickFilter, date, startDate, endDate, pageable, zone, false);
-    }
-    public Page<TaskResponseDTO> searchTasks(String search, String category, String quickFilter, LocalDate date,
             OffsetDateTime startDate, OffsetDateTime endDate, Pageable pageable, ZoneId zone, boolean includeUndated) {
         if (search != null && search.length() > 255) throw new IllegalArgumentException("Search is too long");
         return tasks.findAll(scope().and(withDynamicFilters(search, category, quickFilter, date, startDate, endDate, zone, includeUndated)),
