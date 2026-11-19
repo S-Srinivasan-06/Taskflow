@@ -85,7 +85,7 @@ graph LR
 |---|---|---|---|
 | **Frontend & API Proxy** | Vercel | React SPA delivery + Same-origin `/api` forwarding | [taskflow-olive-psi.vercel.app](https://taskflow-olive-psi.vercel.app/) |
 | **Backend API** | Render | Spring Boot 3.5 REST application | [taskflow-api-d6bm.onrender.com](https://taskflow-api-d6bm.onrender.com/actuator/health/readiness) |
-| **Database** | Supabase | Managed PostgreSQL 17 with private `app` schema and RLS | *Session pooler over TLS (not public)* |
+| **Database** | Supabase | Managed PostgreSQL 17 with private `app` schema and RLS | *Supabase session pooler* |
 
 The browser interacts strictly with the Vercel origin. Vercel forwards `/api/*` calls to the Render backend, preserving secure session cookies and CSRF tokens across origins without exposing internal infrastructure credentials.
 
