@@ -85,7 +85,7 @@ graph LR
 |---|---|---|---|
 | **Frontend & API Proxy** | Vercel | React SPA delivery + Same-origin `/api` forwarding | [taskflow-olive-psi.vercel.app](https://taskflow-olive-psi.vercel.app/) |
 | **Backend API** | Render | Spring Boot 3.5 REST application | [taskflow-api-d6bm.onrender.com](https://taskflow-api-d6bm.onrender.com/actuator/health/readiness) |
-| **Database** | Supabase | Managed PostgreSQL 17 with private `app` schema and RLS | *Private VPC Connection* |
+| **Database** | Supabase | Managed PostgreSQL 17 with private `app` schema and RLS | *Session pooler over TLS (not public)* |
 
 The browser interacts strictly with the Vercel origin. Vercel forwards `/api/*` calls to the Render backend, preserving secure session cookies and CSRF tokens across origins without exposing internal infrastructure credentials.
 
@@ -143,7 +143,7 @@ The browser interacts strictly with the Vercel origin. Vercel forwards `/api/*` 
 
 ## API Reference
 
-The backend exposes a secure RESTful API rooted at `/api/v1`. Authenticated endpoints require the `TASKFLOW_SESSION` cookie. State-mutating requests (`POST`, `PUT`, `PATCH`, `DELETE`) require the `X-CSRF-TOKEN` header returned by `/api/v1/auth/csrf`.
+The backend exposes a secure RESTful API rooted at `/api/v1`. Authenticated endpoints require the `TASKFLOW_SESSION` cookie. State-mutating requests (`POST`, `PUT`, `PATCH`, `DELETE`) require the `X-XSRF-TOKEN` header returned by `/api/v1/auth/csrf`.
 
 ### Authentication Endpoints
 
@@ -321,7 +321,7 @@ APP_CORS_ORIGINS=http://localhost:5173
 │                        Security Architecture                           │
 ├────────────────────────────────────────────────────────────────────────┤
 │ • Authentication:  Case-insensitive user ID + 12-72 byte password     │
-│ • Passwords:       BCrypt salted hashing (cost factor 10)              │
+│ • Passwords:       BCrypt salted hashing (cost factor 12)              │
 │ • Sessions:        Random cryptotoken in HttpOnly SameSite=Lax cookie  │
 │ • Database Token:  Stored as SHA-256 hash in app.login_sessions        │
 │ • CSRF Protection: Double-Submit Cookie Pattern required on mutations  │
